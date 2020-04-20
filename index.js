@@ -22,8 +22,8 @@ const bot = new Discord.Client({disableEveryone: true});
 bot.on("ready", async () => {
   console.log(`Sweet Stats is online!`)
   bot.user.setActivity("Destiny 2");
-//Creates an automatic schedule that will get new stats at designated time, which is currently set to 10am
-  schedule.scheduleJob("0 10 * * *", async () => {
+//Creates an automatic schedule that will get new stats at designated time. This obviously runs at local system time, so if deployed to something like heroku, which is in GMT time zone, you'll need to set accordingly
+  schedule.scheduleJob("0 " + config.autoTime + " * * *", async () => {
     const channel = bot.channels.cache.get(channelID);
     channel.send("!stat");
   });
@@ -185,7 +185,7 @@ bot.on('message', async message => {
   //Checking if the bot initiated the command (From 10am daily) or if a user initiated and giving the corresponsing header output
     if(author){
     //Sending automatic initiated message for 10am
-      channel.send("Good morning fireteam! Here is your daily leaderboards, brought to you everyday at 10am. To manually update, please use the command !stat:");
+      channel.send("Good morning fireteam! Here is your daily leaderboards, brought to you everyday at "+ config.displayedTime +". To manually update, please use the command !stat:");
     }else{
     //Getting curent date and time to have for manual message
       var today = new Date();
