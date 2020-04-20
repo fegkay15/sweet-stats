@@ -5,5 +5,7 @@
   "channelID": "Insert chosen text channel's ID",
   "names": ["Comma","seperated","array","containing","each","players","names"],
   "membershipType":["Comma","seperated","array","containing","each","players","membershipType"],
-  "membershipID": ["Comma","seperated","array","containing","each","players","membershipID"]
+  "membershipID": ["Comma","seperated","array","containing","each","players","membershipID"],
+  "autoTime": "14",
+  "displayedTime": "10am"
 }
