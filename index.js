@@ -12,9 +12,6 @@ const headers = config.bungieKey;
 const token = config.token;
 const channelID = config.channelID;
 const httpOptions = { method: 'GET', headers: headers};
-var names = new Array(10);
-var membershipType = new Array(10);
-var membershipID = new Array(10);
 var instance = 0;
 const bot = new Discord.Client({disableEveryone: true});
 
@@ -23,7 +20,9 @@ bot.on("ready", async () => {
   console.log(`Sweet Stats is online!`)
   bot.user.setActivity("Destiny 2");
 //Creates an automatic schedule that will get new stats at designated time. This obviously runs at local system time, so if deployed to something like heroku, which is in GMT time zone, you'll need to set accordingly
-  schedule.scheduleJob("0 " + config.autoTime + " * * *", async () => {
+  var reverse = -parseInt(config.timezone);
+  var corectedTime = (parseInt(config.autoTime) + reverse);
+  schedule.scheduleJob("0 " + corectedTime.toString() + " * * *", async () => {
     const channel = bot.channels.cache.get(channelID);
     channel.send("!stat");
   });
@@ -66,11 +65,14 @@ bot.on('message', async message => {
     var twoHundred;
     var twoHundredTwo;
   //Names of each person meant to be displayed
-    names = config.names;
+    var names = new Array();
+    for(i = 0; i < config.names.length; i++){
+      names.push(config.names[i]);
+    }
   //Each person's original platform number from Bungie (1=Xbox,2=PSN,3=PC. There may be others based on Stadia and Battle.net, but I'm not sure)
-    membershipType = config.membershipType;
+    var membershipType = config.membershipType;
   //Each persons's user number ID from Bungie
-    membershipID = config.membershipID;
+    var membershipID = config.membershipID;
     var userCharctersList;
   //Need to declare arrays with same value for each index with as many indexes as names.length
     var maxLight = new Array();
@@ -185,15 +187,16 @@ bot.on('message', async message => {
   //Checking if the bot initiated the command (From 10am daily) or if a user initiated and giving the corresponsing header output
     if(author){
     //Sending automatic initiated message for 10am
-      channel.send("Good morning fireteam! Here is your daily leaderboards, brought to you everyday at "+ config.displayedTime +". To manually update, please use the command !stat:");
+      channel.send("Good morning fireteam! Here is your daily leaderboards, brought to you everyday at "+ config.autoTime + ((parseInt(config.autoTime) > 11)? "PM" : "AM") + ". To manually update, please use the command !stat:");
     }else{
     //Getting curent date and time to have for manual message
       var today = new Date();
+      today.setHours(today.getHours() + parseInt(config.timezone));
       var hour = (today.getHours() > 12)? today.getHours() -12 : today.getHours();
       if(hour == 0){
         hour = 12;
       }
-      var ampm = (today.getHours() > 12)? "PM" : "AM";
+      var ampm = (today.getHours() > 11)? "PM" : "AM";
       var date = (today.getMonth()+1) + '/' + today.getDate() + '/' + today.getFullYear().toString().slice(-2) + " at " + hour + ':' + (today.getMinutes()<10?'0':'') + today.getMinutes() + ampm;
     //Sending manual initiated message
       channel.send("Last updated manually on: " + date + ". To manually update, please use the command !stat");
@@ -261,6 +264,7 @@ bot.on('message', async message => {
     //Print to console the url of each person's full banner with stats
       console.log(((leaderboardsChannel.lastMessage.attachments).array()[0].url));
     }
+    names = config.names;
   }else{
     //Deletes any message with a prefix that isn't one of the accepted
     message.delete();
@@ -268,6 +272,7 @@ bot.on('message', async message => {
   }
   //Resets instance
   instance = 0;
+  return;
 });
 
 bot.login(token);
