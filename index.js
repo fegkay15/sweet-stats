@@ -157,7 +157,11 @@ bot.on('message', async message => {
     //Stores the calculated leftover minutes played of the character at the current index i
       timePlayedMinutes[i] = Math.floor((secondsPlayed / 60) % 60);
     //Stores the current season rank of the character at the current index i
-      seasonRanks[i] = twoHundredTwo[maxUserCharacterID[i]].progressions[2926321498].level + twoHundredTwo[maxUserCharacterID[i]].progressions[1470619782].level;
+      if(twoHundredTwo == undefined){
+        seasonRanks[i] = "N/A";
+      }else{
+        seasonRanks[i] = twoHundredTwo[maxUserCharacterID[i]].progressions[2926321498].level + twoHundredTwo[maxUserCharacterID[i]].progressions[1470619782].level;
+      }
     //Stores the emblem url of the character at the current index i
       emblemPaths[i] = "https://bungie.net" + twoHundred[maxUserCharacterID[i]].emblemBackgroundPath;
     }
