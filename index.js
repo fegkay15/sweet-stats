@@ -49,6 +49,13 @@ bot.on('message', async message => {
 //Get the command itself seperated from the prefix
 	const args = message.content.slice(prefix.length).split(/ +/);
 	const command = args.shift().toLowerCase();
+//Manual command to make bot send !stat
+  if (command === 'manual'){
+    instance = 0;
+    const channel = bot.channels.cache.get(channelID);
+    channel.send("!stat");
+    return;
+  }
 //check if the command is the chosen stat, which is either stat or stats
   if (command === 'stat' || command === 'stats') {
     var author = message.author.bot;
