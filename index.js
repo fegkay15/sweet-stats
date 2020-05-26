@@ -230,20 +230,25 @@ bot.on('message', async message => {
       const lightIcon = await Canvas.loadImage('light.png');
       ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
     //Adding Username to canvas
-      ctx.font = '14px RobotoBold';
+      ctx.font = '16px RobotoBold';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = "left";
-      ctx.fillText(names[i], 60, canvas.height * 0.28);
+      ctx.fillText(names[i], 60, canvas.height * 0.3);
     //Adding Season Rank to canvas
       ctx.font = '12px Roboto';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = "left";
-      ctx.fillText("Season Rank: " + seasonRanks[i], 60, canvas.height * 0.56);
-    //Adding Time Played for character to canvas
-      ctx.font = '16px Roboto';
+      ctx.fillText(genderRaceClass[i], 60, canvas.height * 0.56);
+    //Adding Season Rank to canvas
+      ctx.font = '12px Roboto';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = "left";
-      ctx.fillText(timePlayedHours[i] + "h " + timePlayedMinutes[i] + "m", 60, canvas.height * 0.875);
+      ctx.fillText("Season Rank: " + seasonRanks[i], 60, canvas.height * 0.76);
+    //Adding Time Played for character to canvas
+      ctx.font = '12px Roboto';
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = "left";
+      ctx.fillText(timePlayedHours[i] + "h " + timePlayedMinutes[i] + "m", 60, canvas.height * 0.96);
     //Adding Destiny 2 Light Level to canvas
       ctx.font = '20px RobotoBold';
       ctx.fillStyle = '#e2d259';
