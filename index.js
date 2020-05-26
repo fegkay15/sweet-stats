@@ -52,6 +52,7 @@ bot.on('message', async message => {
 //check if the command is the chosen stat, which is either stat or stats
   if (command === 'stat' || command === 'stats') {
     var author = message.author.bot;
+    var user = message.author.id;
   //Clear out the entire channel chosen of all messages
     const leaderboardsChannel = message.guild.channels.resolve(channelID);
     leaderboardsChannel.bulkDelete(99);
@@ -82,7 +83,6 @@ bot.on('message', async message => {
         genderRaceClass.push("");
     }
     var selectedCharacter;
-    var replyStats;
     var secondsPlayed;
   //Blank arrays being created based on length of names array
     const maxUserCharacterID = new Array(names.length);
@@ -91,6 +91,7 @@ bot.on('message', async message => {
     var kdaPVP = new Array(names.length);
     var kdaPVE = new Array(names.length);
     var seasonRanks = new Array(names.length);
+    var artifactPower = new Array(names.length);
     var emblemPaths = new Array(names.length);;
     Canvas.registerFont('roboto.ttf', {family: 'Roboto'});
     Canvas.registerFont('roboto-bold.ttf', {family: 'RobotoBold'});
@@ -100,10 +101,25 @@ bot.on('message', async message => {
     for(i = 0; i < names.length; i++){
     //HTTP GET Request to url to get necessary info needed for the stat images
       reply = await fetch("https://www.bungie.net/Platform/Destiny2/" + membershipType[i] + "/Profile/" + membershipID[i] + "/?components=200,202", httpOptions).then(response => response.json());
+      replyAccountStats = await fetch("https://www.bungie.net/Platform/Destiny2/" + membershipType[i] + "/Account/" + membershipID[i] + "/Stats/", httpOptions).then(response => response.json());
     //Declarations
       twoHundred = reply.Response.characters.data;
       twoHundredTwo = reply.Response.characterProgressions.data;
       userCharctersList = Object.keys(twoHundred);
+      maxLightCharacterList = replyAccountStats.Response.characters;
+      var historicalMaxLight = 0;
+      var historicalCharacter = "";
+      for(h = 0; h < maxLightCharacterList.length; h++){
+        if(maxLightCharacterList[h].deleted == true){
+          continue;
+        }else{
+          var historicalLight = maxLightCharacterList[h].merged.allTime.highestLightLevel.basic.value;
+          if(historicalMaxLight < historicalLight){
+            historicalMaxLight = historicalLight;
+            historicalCharacter = maxLightCharacterList[h].characterId;
+          }
+        }
+      }
     //Loop to look through each character a player has and find which one has the highest light and store that character's ID
       for(j = 0; j < userCharctersList.length; j++){
         var light = twoHundred[userCharctersList[j]].light;
@@ -112,6 +128,12 @@ bot.on('message', async message => {
           maxUserCharacterID[i] = userCharctersList[j];
         }
       }
+
+      if(maxLight[i] < historicalMaxLight){
+        maxLight[i] = historicalMaxLight;
+        maxUserCharacterID[i] = historicalCharacter;
+      }
+
     //If Else tree to save string value of gender race and class based on 3 json values.
       selectedCharacter = twoHundred[maxUserCharacterID[i]];
       if(selectedCharacter.raceType == 0){
@@ -133,42 +155,37 @@ bot.on('message', async message => {
       }else if(selectedCharacter.genderType == 1){
         genderRaceClass[i] = genderRaceClass[i] + "Female";
       }
-    //HTTP GET Request to url to get necessary info needed for the stat images
-      replyStats = await fetch("https://www.bungie.net/Platform/Destiny2/" + membershipType[i] + "/Account/" + membershipID[i] + "/Character/" + maxUserCharacterID[i] + "/Stats/", httpOptions).then(response => response.json());
-      var pvpTime;
     //If else to catch issue where player has never played PvP and applies just a 0.00 KDA value (Yes, I actually had this issue)
-      if(replyStats.Response.allPvP.allTime == undefined){
-      //Stores 0 seconds for PvP in case it is undefined due to no pvp having been played
-        pvpTime = 0;
+      if(replyAccountStats.Response.mergedAllCharacters.results.allPvP.allTime == undefined){
       //Stores 0.00 for PvP KDA in case it is undefined due to no pvp having been played
         kdaPVP[i] = "0.00";
       }else{
-      //Stores amount of seconds in PvP to use for sum of time played on character
-        pvpTime = replyStats.Response.allPvP.allTime.secondsPlayed.basic.value;
       //Stores character's PvP KDA for use in attachment
-        kdaPVP[i] = replyStats.Response.allPvP.allTime.killsDeathsAssists.basic.displayValue;
+        kdaPVP[i] = replyAccountStats.Response.mergedAllCharacters.results.allPvP.allTime.killsDeathsAssists.basic.displayValue;
       }
     //Stores the PvE KDA of the character at the current index i
-      kdaPVE[i] = replyStats.Response.allPvE.allTime.killsDeathsAssists.basic.displayValue;
+      kdaPVE[i] = replyAccountStats.Response.mergedAllCharacters.results.allPvE.allTime.killsDeathsAssists.basic.displayValue;
     //Stores the total Seconds Played of the character at the current index i
-      secondsPlayed = (pvpTime + (replyStats.Response.allPvE.allTime.secondsPlayed.basic.value));
+      secondsPlayed = replyAccountStats.Response.mergedAllCharacters.merged.allTime.secondsPlayed.basic.value;
     //Stores the calculated hours played of the character at the current index i
       timePlayedHours[i] = Math.floor((secondsPlayed / 60) / 60);
     //Stores the calculated leftover minutes played of the character at the current index i
       timePlayedMinutes[i] = Math.floor((secondsPlayed / 60) % 60);
     //Stores the current season rank of the character at the current index i
       if(twoHundredTwo == undefined){
-        seasonRanks[i] = "N/A";
+        seasonRanks[i] = 0;
       }else{
         seasonRanks[i] = twoHundredTwo[maxUserCharacterID[i]].progressions[2926321498].level + twoHundredTwo[maxUserCharacterID[i]].progressions[1470619782].level;
       }
+    //Stores the amount of light received from artifact
+      artifactPower[i] = twoHundredTwo[maxUserCharacterID[i]].progressions[3207504321].level;
     //Stores the emblem url of the character at the current index i
       emblemPaths[i] = "https://bungie.net" + twoHundred[maxUserCharacterID[i]].emblemBackgroundPath;
     }
     var sortedByLight = [];
   //Condenses each stat array into a single object array in order to sort multiple arrays based on one, which is light level
     for(i = 0; i < maxLight.length; i++){
-      sortedByLight.push({'maxLight': maxLight[i],'names': names[i],'genderRaceClass': genderRaceClass[i],'seasonRanks': seasonRanks[i],'timePlayedHours': timePlayedHours[i],'timePlayedMinutes': timePlayedMinutes[i],'kdaPVP': kdaPVP[i],'kdaPVE': kdaPVE[i],'emblemPaths': emblemPaths[i],})
+      sortedByLight.push({'maxLight': maxLight[i],'names': names[i],'genderRaceClass': genderRaceClass[i],'seasonRanks': seasonRanks[i],'timePlayedHours': timePlayedHours[i],'timePlayedMinutes': timePlayedMinutes[i],'kdaPVP': kdaPVP[i],'kdaPVE': kdaPVE[i],'emblemPaths': emblemPaths[i],'artifactPower': artifactPower[i]})
     }
   //Sorts the Object array by highest light level first, then if two people have the same light level, it sorts based on season rank. If that fails, it just defaults to the order in which they are listed in tyhe declared array
     sortedByLight.sort(function(a, b) {
@@ -185,6 +202,7 @@ bot.on('message', async message => {
         kdaPVP[i] = sortedByLight[i].kdaPVP;
         kdaPVE[i] = sortedByLight[i].kdaPVE;
         emblemPaths[i] = sortedByLight[i].emblemPaths;
+        artifactPower[i] = sortedByLight[i].artifactPower;
     }
   //Clearing chosen Leaderboards Channel of all messages to prep for new post
     leaderboardsChannel.bulkDelete(99);
@@ -203,7 +221,7 @@ bot.on('message', async message => {
       var ampm = (today.getHours() > 11)? "PM" : "AM";
       var date = (today.getMonth()+1) + '/' + today.getDate() + '/' + today.getFullYear().toString().slice(-2) + " at " + hour + ':' + (today.getMinutes()<10?'0':'') + today.getMinutes() + ampm;
     //Sending manual initiated message
-      channel.send("Last updated manually on: " + date + ". To manually update, please use the command !stat");
+      channel.send("Last updated manually by <@" + user + ">" + " on: " + date + ". To manually update, please use the command !stat");
     }
   //Loop to create the character images for each player
     for(i = 0; i < names.length; i++){
@@ -215,28 +233,34 @@ bot.on('message', async message => {
       ctx.font = '14px RobotoBold';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = "left";
-      ctx.fillText(names[i], 60, canvas.height * 0.3);
-    //Adding GenderRaceClass to canvas
+      ctx.fillText(names[i], 60, canvas.height * 0.28);
+    //Adding Season Rank to canvas
       ctx.font = '12px Roboto';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = "left";
-      ctx.fillText(genderRaceClass[i], 60, canvas.height * 0.56);
+      ctx.fillText("Season Rank: " + seasonRanks[i], 60, canvas.height * 0.56);
     //Adding Time Played for character to canvas
       ctx.font = '16px Roboto';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = "left";
       ctx.fillText(timePlayedHours[i] + "h " + timePlayedMinutes[i] + "m", 60, canvas.height * 0.875);
-    //Adding Destiny 2 Light Icon to canvas
+    //Adding Destiny 2 Light Level to canvas
       ctx.font = '20px RobotoBold';
       ctx.fillStyle = '#e2d259';
       ctx.textAlign = "right";
       ctx.fillText(maxLight[i], canvas.width - 5, (canvas.height / 2) * 0.7);
-      ctx.drawImage(lightIcon, (canvas.width - 26) - (ctx.measureText(maxLight[i]).width),  (canvas.height * 0.06), 20, 20);
-    //Adding Season Rank to canvas
-      ctx.font = '12px Roboto';
+      ctx.drawImage(lightIcon, (canvas.width - 20) - (ctx.measureText(maxLight[i]).width),  (canvas.height * 0.06), 20, 20);
+    //Adding Destiny 2 Artifact Power to canvas
+      ctx.font = '12px RobotoBold';
+      ctx.fillStyle = '#09d7d0';
+      ctx.textAlign = "right";
+      ctx.fillText(" + " + artifactPower[i], canvas.width - 5, canvas.height * 0.56);
+    //Adding Base to canvas
+      var base = maxLight[i] - artifactPower[i];
+      ctx.font = '12px RobotoBold';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = "right";
-      ctx.fillText("Season Rank: " + seasonRanks[i], canvas.width - 5, canvas.height * 0.56);
+      ctx.fillText(base, (canvas.width - 5) - (ctx.measureText(" + " + artifactPower[i]).width), canvas.height * 0.56);
     //Adding PvP value to canvas
       ctx.font = '12px Roboto';
       ctx.fillStyle = '#ffffff';
@@ -251,12 +275,12 @@ bot.on('message', async message => {
       ctx.font = '12px Roboto';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = "left";
-      ctx.fillText("PvP KDA:", (canvas.width - 5) - (ctx.measureText(("Season Rank: " + seasonRanks[i])).width), canvas.height * 0.76);
+      ctx.fillText("PvP:", (canvas.width - 5) - (ctx.measureText(kdaPVE[i]).width) - (ctx.measureText("PvP: ").width), canvas.height * 0.76);
     //Adding 'PvE KDA' to canvas
       ctx.font = '12px Roboto';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = "left";
-      ctx.fillText("PvE KDA:", (canvas.width - 5) - (ctx.measureText(("Season Rank: " + seasonRanks[i])).width), canvas.height * 0.96);
+      ctx.fillText("PvE:", (canvas.width - 5) - (ctx.measureText(kdaPVE[i]).width) - (ctx.measureText("PvP: ").width), canvas.height * 0.96);
     //Converting canvas to discord attachment
       const attachment = new Discord.MessageAttachment(canvas.toBuffer(), names[i] + ".jpg");
     //Send attachment to chosen channel
