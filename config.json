@@ -2,6 +2,7 @@
   "token": "Insert Discord Bot Token Here",
   "prefix": "Insert command prefix here (typically '!')",
   "bungieKey": { "X-API-Key": "Insert Bungie API here" },
+  "herokuKey": "Insert Heroku API key from account settings on heroku"
   "channelID": "Insert chosen text channel's ID",
   "names": ["Comma","seperated","array","containing","each","players","name"],
   "membershipType":["Comma","seperated","array","containing","each","players","membershipType"],
