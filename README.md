@@ -7,7 +7,7 @@ Discord Bot for a single server to display a dynamic leaderboard of each member
 ### How to deploy to Heroku
 1. Edit config.json to include the 3 different api keys you need to make this bot work.  
 -For Discord, you start by going [here](https://discord.com/developers/applications) and creating a new application, give it a name, a profile picture, etc. Then go to the bot tab and copy the "token", that is your discordKey.  
--For Bungie, you start by going [here](https://www.bungie.net/en/Application) and create a new app. Give it a name, and choose not applicable for oauth client type. Leave everything else as is and then click create new app. The API Key is your bungieKey.
+-For Bungie, you start by going [here](https://www.bungie.net/en/Application) and create a new app. Give it a name, and choose not applicable for oauth client type. Leave everything else as is and then click create new app. The API Key is your bungieKey.  
 -For Heroku you start by going [here](https://dashboard.heroku.com/account/applications) and click create authorization and give it whatever description you want, then click create. The autorization token is your herokuKey.
 2. Now you need to go to [here](https://dashboard.heroku.com/new-app) and create a new app in heroku. and remember it's name. 
 2. Install [Heroku CLI](https://devcenter.heroku.com/articles/heroku-command-line)
