@@ -8,9 +8,14 @@ const fetch = require('fetch-retry')(originalFetch, {
     retryDelay: 100
   });
 const prefix = config.prefix;
-const headers = config.bungieKey;
-const token = config.token;
-const channelID = config.channelID;
+const bungieKey = config.bungieKey;
+const herokuKey = config.herokuKey;
+const headers = {"X-API-Key": bungieKey};
+const herokuHead = {"Accept":"application/vnd.heroku+json; version=3", "Authorization": "Bearer " + herokuKey, "Content-type": "application/json"};
+const token = config.discordKey;
+const channelID = process.env.channelID;
+const autoTime = process.env.autoTime;
+const timezone = process.env.timeZone;
 const httpOptions = { method: 'GET', headers: headers};
 var instance = 0;
 const bot = new Discord.Client({disableEveryone: true});
@@ -20,14 +25,14 @@ bot.on("ready", async () => {
   console.log(`Sweet Stats is online!`);
   bot.user.setActivity("Destiny 2");
 //Creates an automatic schedule that will get new stats at designated time. This obviously runs at local system time, so if deployed to something like heroku, which is in GMT time zone, you'll need to set accordingly
-  var reverse = -parseInt(config.timezone);
-  var corectedTime = (parseInt(config.autoTime) + reverse);
+  var reverse = -parseInt(timezone);
+  var corectedTime = (parseInt(autoTime) + reverse);
   schedule.scheduleJob("0 " + corectedTime.toString() + " * * *", async () => {
     const channel = bot.channels.cache.get(channelID);
     channel.send("!stat");
   });
 });
-//When a meesage is detected, do this
+//When a message is detected, do this
 bot.on('message', async message => {
 //Instance counter to prevent more than one instance of the leadeboards from happening as the code is a bodge and relies on everything happening in a specific order and have two run at the same time causes issues
   if(instance == 1){
@@ -49,8 +54,274 @@ bot.on('message', async message => {
 //Get the command itself seperated from the prefix
 	const args = message.content.slice(prefix.length).split(/ +/);
 	const command = args.shift().toLowerCase();
+
+  if(command === 'setup' && message.member.hasPermission("ADMINISTRATOR")){
+    if(bungieKey == ""){
+      message.reply("The Bungie Key is not set in the config.json file");
+      instance = 0;
+      return;
+    }
+    if(herokuKey == ""){
+      message.reply("The Heroku Key is not set in the config.json file");
+      instance = 0;
+      return;
+    }
+    var channelReply = "";
+    var appName = "";
+    var timeReply = 0;
+    var timezoneReply = 0;
+    message.reply("What is the name of the app in heroku? (Get this right or the bot will not work.)");
+    await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
+      console.log(collected.first().content);
+      appName = collected.first().content;
+    }).catch(() => {
+      message.reply('No answer after 30 seconds, operation canceled.');
+      instance = 0;
+    });
+    if(instance == 0){
+      return;
+    }
+    message.reply("Double checking to make sure the app name is correct. Does this link lead you to the app on Heroku? https://dashboard.heroku.com/apps/" + appName);
+    await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 60000}).then(collected => {
+      console.log(collected.first().content);
+      if(collected.first().content.toLowerCase() != 'yes'){
+        message.reply("Please Restart Setup!");
+        instance = 0;
+      }
+    }).catch(() => {
+      message.reply('No answer after 60 seconds, operation canceled.');
+      instance = 0;
+    });
+    if(instance == 0){
+      return;
+    }
+    var testSend = await fetch("https://api.heroku.com/apps/" + appName + "/config-vars", { method: 'GET', headers: herokuHead}).then(response => response.json());
+    console.log(testSend);
+    if(testSend.id == 'not_found' || testSend.id == 'forbidden'){
+      message.reply("The app name submitted was not valid, or you do not have access to this app.");
+      instance = 0;
+      return;
+    }
+    message.reply("Which channel would you like to be the leaderboards channel? (Use # to tag the channel)");
+    await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
+      console.log(collected.first().content);
+      if((collected.first().content.match(/<#/g) || []).length == 1){
+        channelReply = collected.first().content;
+      }else{
+        message.reply("You either added more than one channel tag in your reply, or didn't provide one.");
+        instance = 0;
+      }
+    }).catch(() => {
+      message.reply('No answer after 30 seconds, operation canceled.');
+      instance = 0;
+    });
+    if(instance == 0){
+      return;
+    }
+    message.reply("What hour of the day (in 24 hour format) would you like the bot to automatically update the leaderboards?");
+    await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
+      console.log(collected.first().content);
+      rep = collected.first().content;
+      if(parseInt(rep) != NaN && parseInt(rep) >= 0 && parseInt(rep) <= 23){
+        timeReply = parseInt(rep);
+      }else{
+        message.reply("You did not reply with a proper number between 0 and 23")
+        instance = 0;
+      }
+    }).catch(() => {
+      message.reply('No answer after 30 seconds, operation canceled.');
+      instance = 0;
+    });
+    if(instance == 0){
+      return;
+    }
+    message.reply("Is " + ((timeReply > 12)? timeReply -12 : ((timeReply == 0)? 12 : timeReply)) + ((timeReply > 12)? "pm" : "am") + " the chosen time?");
+    await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
+      console.log(collected.first().content);
+      if(collected.first().content.toLowerCase() != 'yes'){
+        message.reply("Please Restart Setup!");
+        instance = 0;
+      }
+    }).catch(() => {
+      message.reply('No answer after 30 seconds, operation canceled.');
+      instance = 0;
+    });
+    if(instance == 0){
+      return;
+    }
+    message.reply("What is your time difference from UTC/GMT? If you don't know what that means, or are not sure, go here: https://time.is/compare/UTC");
+    await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 60000}).then(collected => {
+      console.log(collected.first().content);
+      timezoneReply = collected.first().content;
+      if(parseInt(timezoneReply) != NaN && parseInt(timezoneReply) >= -12 && parseInt(timezoneReply) <= 12){
+        timezoneReply = parseInt(timezoneReply);
+      }else{
+        message.reply("You did not reply with a proper number between -12 and 12")
+        instance = 0;
+      }
+    }).catch(() => {
+      message.reply('No answer after 60 seconds, operation canceled.');
+      instance = 0;
+    });
+    if(instance == 0){
+      return;
+    }
+    var finalSend = await fetch("https://api.heroku.com/apps/" + appName + "/config-vars", { method: 'PATCH', headers: herokuHead, body: JSON.stringify({"channelID": channelReply.substring(channelReply.indexOf('#') + 1,channelReply.indexOf('>')), "autoTime": timeReply, "appName": appName, "setupComplete": "true"})}).then(response => response.json());
+    console.log(finalSend);
+    message.reply("Setup complete! Restarting bot.");
+    instance = 0;
+    return;
+  }
+  if (command === 'add' && message.member.hasPermission("ADMINISTRATOR")){
+    if(process.env.setupComplete != "true"){
+      message.reply("Bot has not been setup yet. Please have an admin setup up with !setup");
+      instance = 0;
+      return;
+    }
+    namesReply = process.env.names.split(",");
+    idReply = process.env.membershipID.split(",");
+    typeReply = process.env.membershipType.split(",");
+    redo = true;
+    while(redo == true){
+      nameReply = "";
+      membershipIDReply = "";
+      membershipTypeReply = "";
+      message.reply("What is name of the person you would like to add?");
+      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
+        console.log(collected.first().content);
+        nameReply = collected.first().content;
+      }).catch(() => {
+        message.reply('No answer after 30 seconds, operation canceled.');
+        instance = 0;
+      });
+      if(instance == 0){
+        return;
+      }
+      message.reply("Is " + nameReply + " the correct name you want?");
+      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
+        console.log(collected.first().content);
+        if(collected.first().content.toLowerCase() != 'yes'){
+          message.reply("Please Restart Setup!");
+          instance = 0;
+        }
+      }).catch(() => {
+        message.reply('No answer after 30 seconds, operation canceled.');
+        instance = 0;
+      });
+      if(instance == 0){
+        return;
+      }
+      message.reply("Now you need to provide the membershipType and membershipID variables for this player. To do this, you will use https://wastedondestiny.com/ Find the player on there, click on view more, and then click on 'View Profile on Bungie.net' then copy and paste the url here as the reply.");
+      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 120000}).then(collected => {
+        console.log(collected.first().content);
+        urlReply = collected.first().content;
+        if(urlReply.startsWith("https://www.bungie.net/en/Profile/") || urlReply.startsWith("http://www.bungie.net/en/Profile/")){
+          membershipTypeReply = urlReply.substring(urlReply.indexOf("Profile/") + 8,urlReply.indexOf("Profile/") + 9);
+          membershipIDReply = urlReply.substring(urlReply.lastIndexOf("/") + 1)
+        }else{
+          message.reply("Not a valid URL.");
+          instance = 0;
+        }
+      }).catch(() => {
+        message.reply('No answer after 2 minutes, operation canceled.');
+        instance = 0;
+      });
+      if(instance == 0){
+        return;
+      }
+      message.reply("Would you like to add another player?");
+      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
+        console.log(collected.first().content);
+        if(collected.first().content.toLowerCase() != 'yes'){
+            redo = false;
+        }
+      }).catch(() => {
+        message.reply('No answer after 30 seconds, operation canceled.');
+        instance = 0;
+      });
+      if(instance == 0){
+        return;
+      }
+      namesReply.push(nameReply);
+      idReply.push(membershipIDReply);
+      typeReply.push(membershipTypeReply);
+    }
+    var finalSend = await fetch("https://api.heroku.com/apps/" + process.env.appName + "/config-vars", { method: 'PATCH', headers: herokuHead, body: JSON.stringify({"names": namesReply.toString(), "membershipID": idReply.toString(), "membershipType": typeReply.toString()})}).then(response => response.json());
+    console.log(finalSend);
+    message.reply("Addition complete! Restarting bot.");
+    instance = 0;
+    return;
+  }
+  if (command === 'remove' && message.member.hasPermission("ADMINISTRATOR")){
+    if(process.env.setupComplete != "true"){
+      message.reply("Bot has not been setup yet. Please have an admin setup up with !setup");
+      instance = 0;
+      return;
+    }
+    namesReply = process.env.names.split(",");
+    idReply = process.env.membershipID.split(",");
+    typeReply = process.env.membershipType.split(",");
+    characterReply = process.env.character.split(",");
+    lightReply = process.env.light.split(",");
+    redo = true;
+    while(redo == true){
+      indexReply = -1;
+      message.reply("What is name of the person you would like to remove?");
+      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
+        console.log(collected.first().content);
+        if(namesReply.indexOf(collected.first().content) >= 0){
+          indexReply = namesReply.indexOf(collected.first().content);
+        }else{
+          message.reply("Couldn't find a player by that name.");
+          instance = 0;
+        }
+      }).catch(() => {
+        message.reply('No answer after 30 seconds, operation canceled.');
+        instance = 0;
+      });
+      if(instance == 0){
+        return;
+      }
+      message.reply("Confirm that you want to remove "+ namesReply[indexReply] + ". Yes or no?");
+      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
+        console.log(collected.first().content);
+        if(collected.first().content.toLowerCase() != 'yes'){
+            instance = 0;
+        }
+      }).catch(() => {
+        message.reply('No answer after 30 seconds, operation canceled.');
+        instance = 0;
+      });
+      if(instance == 0){
+        return;
+      }
+      namesReply.splice(indexReply,1);
+      idReply.splice(indexReply,1);
+      typeReply.splice(indexReply,1);
+      characterReply.splice(indexReply,1);
+      lightReply.splice(indexReply,1);
+      message.reply("Would you like to remove another player?");
+      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
+        console.log(collected.first().content);
+        if(collected.first().content.toLowerCase() != 'yes'){
+            redo = false
+        }
+      }).catch(() => {
+        message.reply('No answer after 30 seconds, operation canceled.');
+        instance = 0;
+      });
+      if(instance == 0){
+        return;
+      }
+    }
+    var finalSend = await fetch("https://api.heroku.com/apps/" + process.env.appName + "/config-vars", { method: 'PATCH', headers: herokuHead, body: JSON.stringify({"names": namesReply.toString(), "membershipID": idReply.toString(), "membershipType": typeReply.toString(), "character": characterReply.toString(), "light": lightReply.toString()})}).then(response => response.json());
+    console.log(finalSend);
+    message.reply("Removal complete! Restarting bot.");
+    instance = 0;
+    return;
+  }
 //Manual command to make bot send !stat
-  if (command === 'manual'){
+  if (command === 'manual' && message.member.hasPermission("ADMINISTRATOR")){
     instance = 0;
     const channel = bot.channels.cache.get(channelID);
     channel.send("!stat");
@@ -58,6 +329,16 @@ bot.on('message', async message => {
   }
 //check if the command is the chosen stat, which is either stat or stats
   if (command === 'stat' || command === 'stats') {
+    if(process.env.setupComplete != "true"){
+      message.reply("Bot has not been setup yet. Please have an admin setup up with !setup");
+      instance = 0;
+      return;
+    }
+    if(process.env.names == undefined || process.env.membershipID == undefined || process.env.membershipType == undefined){
+      message.reply("No players have been added to leaderboards. Please have an admin add players with !add");
+      instance = 0;
+      return;
+    }
     var author = message.author.bot;
     var user = message.author.id;
   //Clear out the entire channel chosen of all messages
@@ -74,13 +355,13 @@ bot.on('message', async message => {
     var twoHundredTwo;
   //Names of each person meant to be displayed
     var names = new Array();
-    for(i = 0; i < config.names.length; i++){
-      names.push(config.names[i]);
+    for(i = 0; i < process.env.names.split(",").length; i++){
+      names.push(process.env.names.split(",")[i]);
     }
   //Each person's original platform number from Bungie (1=Xbox,2=PSN,3=PC. There may be others based on Stadia and Battle.net, but I'm not sure)
-    var membershipType = config.membershipType;
+    var membershipType = process.env.membershipType.split(",");
   //Each persons's user number ID from Bungie
-    var membershipID = config.membershipID;
+    var membershipID = process.env.membershipID.split(",");
     var userCharctersList;
   //Need to declare arrays with same value for each index with as many indexes as names.length
     var maxLight = new Array();
@@ -104,26 +385,22 @@ bot.on('message', async message => {
     Canvas.registerFont('roboto-bold.ttf', {family: 'RobotoBold'});
     const canvas = Canvas.createCanvas(300,60);
     const ctx = canvas.getContext('2d');
-
-    var herokuHead = {"Accept":"application/vnd.heroku+json; version=3", "Authorization": "Bearer " + config.herokuKey, "Content-type": "application/json"};
-    var env = await fetch("https://api.heroku.com/apps/sweet-stats/config-vars", { method: 'GET', headers: herokuHead}).then(response => response.json());
-
-    if(env.light == undefined){
+    if(process.env.light == undefined){
       envLight = new Array();
       for(i = 0; i < names.length; i++){
           envLight.push("0");
       }
     }else{
-      envLight = env.light;
+      envLight = process.env.light;
       envLight = envLight.split(",");
     }
-    if(env.character == undefined){
+    if(process.env.character == undefined){
       envCharacter = new Array();
       for(i = 0; i < names.length; i++){
           envCharacter.push("0");
       }
     }else{
-      envCharacter = env.character;
+      envCharacter = process.env.character;
       envCharacter = envCharacter.split(",");
     }
     envLightLength = envLight.length;
@@ -259,11 +536,11 @@ bot.on('message', async message => {
   //Checking if the bot initiated the command (From 10am daily) or if a user initiated and giving the corresponsing header output
     if(author){
     //Sending automatic initiated message for 10am
-      channel.send("Good morning fireteam! Here is your daily leaderboards, brought to you everyday at "+ config.autoTime + ((parseInt(config.autoTime) > 11)? "PM" : "AM") + ". To manually update, please use the command !stat:");
+      channel.send("Good morning fireteam! Here is your daily leaderboards, brought to you everyday at "+ autoTime + ((parseInt(autoTime) > 11)? "pm" : "am") + ". To manually update, please use the command !stat:");
     }else{
     //Getting curent date and time to have for manual message
       var today = new Date();
-      today.setHours(today.getHours() + parseInt(config.timezone));
+      today.setHours(today.getHours() + parseInt(timezone));
       var hour = (today.getHours() > 12)? today.getHours() -12 : today.getHours();
       if(hour == 0){
         hour = 12;
@@ -337,25 +614,25 @@ bot.on('message', async message => {
       ctx.textAlign = "left";
       ctx.fillText("PvE:", (canvas.width - 5) - (ctx.measureText(kdaPVE[i]).width) - (ctx.measureText("PvP: ").width), canvas.height * 0.96);
     //Converting canvas to discord attachment
-      const attachment = new Discord.MessageAttachment(canvas.toBuffer(), names[i] + ".jpg");
+      const attachment = new Discord.MessageAttachment(canvas.toBuffer(), names[i].replace(/[^\w.]/g,"") + ".jpg");
     //Send attachment to chosen channel
       await leaderboardsChannel.send(attachment);
     //Just waiting until message has properly posted to Discord
-      while(((leaderboardsChannel.lastMessage.attachments).array()[0].name) != (names[i].split(' ').join('_').split('(').join('').split(')').join('') + ".jpg")) {
+      while(((leaderboardsChannel.lastMessage.attachments).array()[0].name) != (names[i].replace(/[^\w.]/g,"") + ".jpg")) {
 
       }
     //Print to console the url of each person's full banner with stats
       console.log(((leaderboardsChannel.lastMessage.attachments).array()[0].url));
     }
-    names = config.names;
-    var send = await fetch("https://api.heroku.com/apps/sweet-stats/config-vars", { method: 'PATCH', headers: herokuHead, body: JSON.stringify({"light": envLight.toString(), "character": envCharacter.toString()})}).then(response => response.json());
+    var send = await fetch("https://api.heroku.com/apps/" + process.env.appName + "/config-vars", { method: 'PATCH', headers: herokuHead, body: JSON.stringify({"light": envLight.toString(), "character": envCharacter.toString()})}).then(response => response.json());
+    console.log(send);
   }else{
     //Deletes any message with a prefix that isn't one of the accepted
     message.delete();
+    instance = 0;
     return;
   }
   //Resets instance
-
   instance = 0;
   return;
 });
