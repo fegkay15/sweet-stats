@@ -23,5 +23,5 @@ Discord Bot for a single server to display a dynamic leaderboard of each member
 
 And there you go, it should be running. If it isn't, you may need to go into the resources tab of your app on Heroku and make sure that Worker is enabled and that no other Dynos are enabled. 
 
-![Image of Leaderboard](https://i.imgur.com/4DEXRAE.png)
-![Gif of Leaderboard](https://i.imgur.com/IO447y5.gif)
+![Image of Leaderboard](https://i.imgur.com/L8cSBd6.png)
+![Gif of Leaderboard](https://i.imgur.com/NHfutWH.gif)
