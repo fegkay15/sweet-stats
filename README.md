@@ -2,7 +2,11 @@
 Discord Bot for a single server to display a dynamic leaderboard of each member
 
 ### How to use
-!stat or !stats in any channel to start the leaderboard process
+Commands:  
+!setup to setup bot  
+!add to add players to leaderboard  
+!remove to remove players from leaderboard
+!stat or stats to update the leaderboard
 
 ### How to deploy to Heroku
 1. Edit config.json to include the 3 different api keys you need to make this bot work.  
@@ -20,6 +24,8 @@ Discord Bot for a single server to display a dynamic leaderboard of each member
 9. Run 'git add .'
 10. Run 'git commit -am "Deploying to Heroku"'
 11. Run 'git push heroku master'
+12. Use this link to add your bot to your server:  
+https://<!--This is a comment-->discord.com/api/oauth2/authorize?client_id=insertClientIdFromDiscordHere&permissions=257024&scope=bot
 
 And there you go, it should be running. If it isn't, you may need to go into the resources tab of your app on Heroku and make sure that Worker is enabled and that no other Dynos are enabled. 
 
