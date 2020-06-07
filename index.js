@@ -383,7 +383,7 @@ bot.on('message', async message => {
     var emblemPaths = new Array(names.length);;
     Canvas.registerFont('roboto.ttf', {family: 'Roboto'});
     Canvas.registerFont('roboto-bold.ttf', {family: 'RobotoBold'});
-    const canvas = Canvas.createCanvas(300,60);
+    const canvas = Canvas.createCanvas(474,96);
     const ctx = canvas.getContext('2d');
     if(process.env.light == undefined){
       envLight = new Array();
@@ -557,62 +557,62 @@ bot.on('message', async message => {
       const lightIcon = await Canvas.loadImage('light.png');
       ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
     //Adding Username to canvas
-      ctx.font = '16px RobotoBold';
+      ctx.font = '25px RobotoBold';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = "left";
-      ctx.fillText(names[i], 60, canvas.height * 0.3);
+      ctx.fillText(names[i], 96, canvas.height * 0.3);
     //Adding Season Rank to canvas
-      ctx.font = '12px Roboto';
+      ctx.font = '19px Roboto';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = "left";
-      ctx.fillText(genderRaceClass[i], 60, canvas.height * 0.56);
+      ctx.fillText(genderRaceClass[i], 96, canvas.height * 0.56);
     //Adding Season Rank to canvas
-      ctx.font = '12px Roboto';
+      ctx.font = '19px Roboto';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = "left";
-      ctx.fillText("Season Rank: " + seasonRanks[i], 60, canvas.height * 0.76);
+      ctx.fillText("Season Rank: " + seasonRanks[i], 96, canvas.height * 0.76);
     //Adding Time Played for character to canvas
-      ctx.font = '12px Roboto';
+      ctx.font = '19px Roboto';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = "left";
-      ctx.fillText(timePlayedHours[i] + "h " + timePlayedMinutes[i] + "m", 60, canvas.height * 0.96);
+      ctx.fillText(timePlayedHours[i] + "h " + timePlayedMinutes[i] + "m", 96, canvas.height * 0.96);
     //Adding Destiny 2 Light Level to canvas
-      ctx.font = '20px RobotoBold';
+      ctx.font = '32px RobotoBold';
       ctx.fillStyle = '#e2d259';
       ctx.textAlign = "right";
-      ctx.fillText(maxLight[i], canvas.width - 5, (canvas.height / 2) * 0.7);
-      ctx.drawImage(lightIcon, (canvas.width - 20) - (ctx.measureText(maxLight[i]).width),  (canvas.height * 0.06), 20, 20);
+      ctx.fillText(maxLight[i], canvas.width - 8, (canvas.height / 2) * 0.7);
+      ctx.drawImage(lightIcon, (canvas.width - 32) - (ctx.measureText(maxLight[i]).width),  (canvas.height * 0.06), 32, 32);
     //Adding Destiny 2 Artifact Power to canvas
-      ctx.font = '12px RobotoBold';
+      ctx.font = '19px RobotoBold';
       ctx.fillStyle = '#09d7d0';
       ctx.textAlign = "right";
-      ctx.fillText(" + " + artifactPower[i], canvas.width - 5, canvas.height * 0.56);
+      ctx.fillText(" + " + artifactPower[i], canvas.width - 8, canvas.height * 0.56);
     //Adding Base to canvas
       var base = maxLight[i] - artifactPower[i];
-      ctx.font = '12px RobotoBold';
+      ctx.font = '19px RobotoBold';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = "right";
-      ctx.fillText(base, (canvas.width - 5) - (ctx.measureText(" + " + artifactPower[i]).width), canvas.height * 0.56);
+      ctx.fillText(base, (canvas.width - 8) - (ctx.measureText(" + " + artifactPower[i]).width), canvas.height * 0.56);
     //Adding PvP value to canvas
-      ctx.font = '12px Roboto';
+      ctx.font = '19px Roboto';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = "right";
-      ctx.fillText(kdaPVP[i], canvas.width - 5, canvas.height * 0.76);
+      ctx.fillText(kdaPVP[i], canvas.width - 8, canvas.height * 0.76);
     //Adding PvE value to canvas
-      ctx.font = '12px Roboto';
+      ctx.font = '19px Roboto';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = "right";
-      ctx.fillText(kdaPVE[i], canvas.width - 5, canvas.height * 0.96);
+      ctx.fillText(kdaPVE[i], canvas.width - 8, canvas.height * 0.96);
     //Adding 'PvP KDA' to canvas
-      ctx.font = '12px Roboto';
+      ctx.font = '19px Roboto';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = "left";
-      ctx.fillText("PvP:", (canvas.width - 5) - (ctx.measureText(kdaPVE[i]).width) - (ctx.measureText("PvP: ").width), canvas.height * 0.76);
+      ctx.fillText("PvP:", (canvas.width - 8) - (ctx.measureText(kdaPVE[i]).width) - (ctx.measureText("PvP: ").width), canvas.height * 0.76);
     //Adding 'PvE KDA' to canvas
-      ctx.font = '12px Roboto';
+      ctx.font = '19px Roboto';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = "left";
-      ctx.fillText("PvE:", (canvas.width - 5) - (ctx.measureText(kdaPVE[i]).width) - (ctx.measureText("PvP: ").width), canvas.height * 0.96);
+      ctx.fillText("PvE:", (canvas.width - 8) - (ctx.measureText(kdaPVE[i]).width) - (ctx.measureText("PvP: ").width), canvas.height * 0.96);
     //Converting canvas to discord attachment
       const attachment = new Discord.MessageAttachment(canvas.toBuffer(), names[i].replace(/[^\w.]/g,"") + ".jpg");
     //Send attachment to chosen channel
