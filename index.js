@@ -557,9 +557,14 @@ bot.on('message', async message => {
   //Loop to create the character images for each player
     for(i = 0; i < names.length; i++){
     //Declarations
-      const background = await Canvas.loadImage(emblemPaths[i]);
+      if(emblemPaths[i] == "https://bungie.netundefined"){
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }else{
+        const background = await Canvas.loadImage(emblemPaths[i]);
+        ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
+      }
       const lightIcon = await Canvas.loadImage('light.png');
-      ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
     //Adding Username to canvas
       ctx.font = '25px RobotoBold';
       ctx.fillStyle = '#ffffff';
