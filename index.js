@@ -427,7 +427,7 @@ bot.on('message', async message => {
       maxLightCharacterList = replyAccountStats.Response.characters;
       var historicalMaxLight = 0;
       var historicalCharacter = "";
-      for(h = 0; h < maxLightCharacterList.length; h++){
+      /*for(h = 0; h < maxLightCharacterList.length; h++){
         if(maxLightCharacterList[h].deleted == true){
           continue;
         }else{
@@ -437,9 +437,13 @@ bot.on('message', async message => {
             historicalCharacter = maxLightCharacterList[h].characterId;
           }
         }
-      }
+      }*/
     //Stores the amount of light received from artifact
-      artifactPower[i] = twoHundredTwo[Object.keys(twoHundredTwo)[0]].progressions[3207504321].level;
+      if(twoHundredTwo[Object.keys(twoHundredTwo)[0]].progressions[3810510634].currentProgress == 0){
+        artifactPower[i] = 0
+      }else{
+        artifactPower[i] = twoHundredTwo[Object.keys(twoHundredTwo)[0]].progressions[3810510634].level;
+      }
       envLight[i] = parseInt(envLight[i]) + parseInt(artifactPower[i]);
       if(historicalMaxLight < envLight[i]){
         historicalMaxLight = envLight[i];
@@ -503,7 +507,7 @@ bot.on('message', async message => {
       if(twoHundredTwo == undefined){
         seasonRanks[i] = 0;
       }else{
-        seasonRanks[i] = twoHundredTwo[maxUserCharacterID[i]].progressions[2926321498].level + twoHundredTwo[maxUserCharacterID[i]].progressions[1470619782].level;
+        seasonRanks[i] = twoHundredTwo[maxUserCharacterID[i]].progressions[1627914615].level + twoHundredTwo[maxUserCharacterID[i]].progressions[4021269753].level;
       }
 
     //Stores the emblem url of the character at the current index i
