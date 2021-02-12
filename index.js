@@ -461,10 +461,10 @@ bot.on('message', async message => {
       var historicalCharacter = "";
 
     //Stores the amount of light received from artifact
-      if(twoHundredTwo[Object.keys(twoHundredTwo)[0]].progressions[1183600353].currentProgress == 0){
+      if(twoHundredTwo[Object.keys(twoHundredTwo)[0]].progressions[978389300].currentProgress == 0){
         artifactPower[i] = 0
       }else{
-        artifactPower[i] = twoHundredTwo[Object.keys(twoHundredTwo)[0]].progressions[1183600353].level;
+        artifactPower[i] = twoHundredTwo[Object.keys(twoHundredTwo)[0]].progressions[978389300].level;
       }
       envLight[i] = parseInt(envLight[i]) + parseInt(artifactPower[i]);
       if(historicalMaxLight < envLight[i]){
@@ -529,7 +529,7 @@ bot.on('message', async message => {
       if(twoHundredTwo == undefined){
         seasonRanks[i] = 0;
       }else{
-        seasonRanks[i] = twoHundredTwo[maxUserCharacterID[i]].progressions[477676543].level + twoHundredTwo[maxUserCharacterID[i]].progressions[2304468497].level;
+        seasonRanks[i] = twoHundredTwo[maxUserCharacterID[i]].progressions[4030656982].level;// + twoHundredTwo[maxUserCharacterID[i]].progressions[2304468497].level;
       }
 
     //Stores the emblem url of the character at the current index i
@@ -698,3 +698,4 @@ bot.on('message', async message => {
 });
 
 bot.login(token);
+
