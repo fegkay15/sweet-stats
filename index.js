@@ -464,7 +464,9 @@ bot.on('message', async message => {
       if(twoHundredTwo[Object.keys(twoHundredTwo)[0]].progressions[978389300].currentProgress == 0){
         artifactPower[i] = 0
       }else{
-        artifactPower[i] = twoHundredTwo[Object.keys(twoHundredTwo)[0]].progressions[978389300].level;
+        //Disabling artifact power as I do not want to keep bot updated for each season.
+        //artifactPower[i] = twoHundredTwo[Object.keys(twoHundredTwo)[0]].progressions[978389300].level;
+        artifactPower[i] = 0
       }
       envLight[i] = parseInt(envLight[i]) + parseInt(artifactPower[i]);
       if(historicalMaxLight < envLight[i]){
@@ -529,7 +531,9 @@ bot.on('message', async message => {
       if(twoHundredTwo == undefined){
         seasonRanks[i] = 0;
       }else{
-        seasonRanks[i] = twoHundredTwo[maxUserCharacterID[i]].progressions[4030656982].level;// + twoHundredTwo[maxUserCharacterID[i]].progressions[2304468497].level;
+        //Disabling season rank as I do not want to keep bot updated for each season.
+        //seasonRanks[i] = twoHundredTwo[maxUserCharacterID[i]].progressions[4030656982].level;// + twoHundredTwo[maxUserCharacterID[i]].progressions[2304468497].level;
+        seasonRanks[i] = 0;
       }
 
     //Stores the emblem url of the character at the current index i
@@ -625,7 +629,8 @@ bot.on('message', async message => {
       ctx.font = '19px Roboto';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = "left";
-      ctx.fillText("Season Rank: " + seasonRanks[i], 96, canvas.height * 0.76);
+      //Disabling season rank as I do not want to keep bot updated for each season.
+      //ctx.fillText("Season Rank: " + seasonRanks[i], 96, canvas.height * 0.76);
     //Adding Time Played for character to canvas
       ctx.font = '19px Roboto';
       ctx.fillStyle = '#ffffff';
@@ -641,13 +646,15 @@ bot.on('message', async message => {
       ctx.font = '19px RobotoBold';
       ctx.fillStyle = '#09d7d0';
       ctx.textAlign = "right";
-      ctx.fillText(" + " + artifactPower[i], canvas.width - 8, canvas.height * 0.56);
+      //Disabling artifact power as I do not want to keep bot updated for each season.
+      //ctx.fillText(" + " + artifactPower[i], canvas.width - 8, canvas.height * 0.56);
     //Adding Base to canvas
       var base = maxLight[i] - artifactPower[i];
       ctx.font = '19px RobotoBold';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = "right";
-      ctx.fillText(base, (canvas.width - 8) - (ctx.measureText(" + " + artifactPower[i]).width), canvas.height * 0.56);
+      //Disabling artifact power as I do not want to keep bot updated for each season.
+      //ctx.fillText(base, (canvas.width - 8) - (ctx.measureText(" + " + artifactPower[i]).width), canvas.height * 0.56);
     //Adding PvP value to canvas
       ctx.font = '19px Roboto';
       ctx.fillStyle = '#ffffff';
@@ -698,4 +705,3 @@ bot.on('message', async message => {
 });
 
 bot.login(token);
-
