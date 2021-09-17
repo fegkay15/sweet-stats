@@ -97,7 +97,7 @@ bot.on('message', async message => {
       return;
     }
     var testSend = await fetch("https://api.heroku.com/apps/" + appName + "/config-vars", { method: 'GET', headers: herokuHead}).then(response => response.json()).catch(error => console.log(error));
-    console.log(testSend);
+    //console.log(testSend);
     if(testSend.id == 'not_found' || testSend.id == 'forbidden'){
       message.reply("The app name submitted was not valid, or you do not have access to this app.");
       instance = 0;
@@ -168,7 +168,7 @@ bot.on('message', async message => {
       return;
     }
     var finalSend = await fetch("https://api.heroku.com/apps/" + appName + "/config-vars", { method: 'PATCH', headers: herokuHead, body: JSON.stringify({"channelID": channelReply.substring(channelReply.indexOf('#') + 1,channelReply.indexOf('>')), "autoTime": timeReply, "appName": appName, "setupComplete": "true"})}).then(response => response.json()).catch(error => console.log(error));
-    console.log(finalSend);
+    //console.log(finalSend);
     message.reply("Setup complete! Restarting bot.");
     instance = 0;
     return;
@@ -216,7 +216,7 @@ bot.on('message', async message => {
       await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 120000}).then(collected => {
         console.log(collected.first().content);
         urlReply = collected.first().content.toLowerCase();
-        console.log(urlReply);
+        //console.log(urlReply);
         if(urlReply.startsWith("https://www.bungie.net/en/profile/") || urlReply.startsWith("http://www.bungie.net/en/profile/")){
           membershipTypeReply = urlReply.substring(urlReply.indexOf("profile/") + 8,urlReply.indexOf("profile/") + 9);
           membershipIDReply = urlReply.substring(urlReply.lastIndexOf("/") + 1)
@@ -249,7 +249,7 @@ bot.on('message', async message => {
       typeReply.push(membershipTypeReply);
     }
     var finalSend = await fetch("https://api.heroku.com/apps/" + process.env.appName + "/config-vars", { method: 'PATCH', headers: herokuHead, body: JSON.stringify({"names": namesReply.toString(), "membershipID": idReply.toString(), "membershipType": typeReply.toString()})}).then(response => response.json()).catch(error => console.log(error));
-    console.log(finalSend);
+    //console.log(finalSend);
     message.reply("Addition complete! Restarting bot.");
     instance = 0;
     return;
@@ -317,7 +317,7 @@ bot.on('message', async message => {
       }
     }
     var finalSend = await fetch("https://api.heroku.com/apps/" + process.env.appName + "/config-vars", { method: 'PATCH', headers: herokuHead, body: JSON.stringify({"names": namesReply.toString(), "membershipID": idReply.toString(), "membershipType": typeReply.toString(), "character": characterReply.toString(), "light": lightReply.toString()})}).then(response => response.json()).catch(error => console.log(error));
-    console.log(finalSend);
+    //console.log(finalSend);
     message.reply("Removal complete! Restarting bot.");
     instance = 0;
     return;
@@ -443,30 +443,53 @@ bot.on('message', async message => {
       return arrayReplyAccountStats;
     }
 
-    let [arrayReply, arrayReplyAccountStats] = await Promise.all([getReply(), getReplyAccountStats()]).catch(error => console.log(error));
+    async function getSeasonPassDefinition() {
+      promiseManifest = new Promise((resolve, reject) => {
+          manifestFetch = fetch("https://www.bungie.net/Platform/Destiny2/Manifest/", httpOptions).then(response => response.json());
+          resolve(manifestFetch);
+        });
+      var manifest = await Promise.resolve(promiseManifest).catch(error => console.log(error));
+      promiseSeasonPassDefinition = new Promise((resolve, reject) => {
+          seasonPassDefinitionFetch = fetch("https://www.bungie.net" + manifest.Response.jsonWorldComponentContentPaths.en.DestinySeasonPassDefinition, httpOptions).then(response => response.json());
+          resolve(seasonPassDefinitionFetch);
+        });
+      var seasonPassDefinition = await Promise.resolve(promiseSeasonPassDefinition).catch(error => console.log(error));
+      //seasonPassDefinition = Object.keys(seasonPassDefinition);
+      return seasonPassDefinition;
+    }
 
+    let [arrayReply, arrayReplyAccountStats, seasonPassDefinition] = await Promise.all([getReply(), getReplyAccountStats(), getSeasonPassDefinition()]).catch(error => console.log(error));
+    var currentSeasonIndex = 0;
+    var rewardProgressionHash;
+    var prestigeProgressionHash;
+    for(k = 0; k < Object.keys(seasonPassDefinition).length; k++){
+      if(seasonPassDefinition[Object.keys(seasonPassDefinition)[k]].index >= currentSeasonIndex){
+        currentSeasonIndex = seasonPassDefinition[Object.keys(seasonPassDefinition)[k]].index;
+
+        rewardProgressionHash = seasonPassDefinition[Object.keys(seasonPassDefinition)[k]].rewardProgressionHash;
+        prestigeProgressionHash = seasonPassDefinition[Object.keys(seasonPassDefinition)[k]].prestigeProgressionHash;
+      }
+    }
     for(i = 0; i < names.length; i++){
     //HTTP GET Request to url to get necessary info needed for the stat images
-    console.log(arrayReply[i]);
       reply = arrayReply[i];
       replyAccountStats = arrayReplyAccountStats[i];
     //Declarations
-    console.log(reply);
       twoHundred = reply.Response.characters.data;
       twoHundredTwo = reply.Response.characterProgressions.data;
       userCharctersList = Object.keys(twoHundred);
-      console.log(replyAccountStats);
       maxLightCharacterList = replyAccountStats.Response.characters;
       var historicalMaxLight = 0;
       var historicalCharacter = "";
 
     //Stores the amount of light received from artifact
-      if(twoHundredTwo[Object.keys(twoHundredTwo)[0]].progressions[978389300].currentProgress == 0){
+      if(twoHundredTwo[Object.keys(twoHundredTwo)[0]].progressions[243419342].currentProgress == 0){
         artifactPower[i] = 0
       }else{
-        //Disabling artifact power as I do not want to keep bot updated for each season.
-        //artifactPower[i] = twoHundredTwo[Object.keys(twoHundredTwo)[0]].progressions[978389300].level;
-        artifactPower[i] = 0
+
+        artifactPower[i] = twoHundredTwo[Object.keys(twoHundredTwo)[0]].progressions[243419342].level;
+        //Used to disable artifact power above
+        //artifactPower[i] = 0
       }
       envLight[i] = parseInt(envLight[i]) + parseInt(artifactPower[i]);
       if(historicalMaxLight < envLight[i]){
@@ -531,9 +554,9 @@ bot.on('message', async message => {
       if(twoHundredTwo == undefined){
         seasonRanks[i] = 0;
       }else{
-        //Disabling season rank as I do not want to keep bot updated for each season.
-        //seasonRanks[i] = twoHundredTwo[maxUserCharacterID[i]].progressions[4030656982].level;// + twoHundredTwo[maxUserCharacterID[i]].progressions[2304468497].level;
-        seasonRanks[i] = 0;
+        seasonRanks[i] = twoHundredTwo[maxUserCharacterID[i]].progressions[rewardProgressionHash].level + twoHundredTwo[maxUserCharacterID[i]].progressions[prestigeProgressionHash].level;
+        //Used to disable season ranks
+        //seasonRanks[i] = 0;
       }
 
     //Stores the emblem url of the character at the current index i
@@ -629,8 +652,7 @@ bot.on('message', async message => {
       ctx.font = '19px Roboto';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = "left";
-      //Disabling season rank as I do not want to keep bot updated for each season.
-      //ctx.fillText("Season Rank: " + seasonRanks[i], 96, canvas.height * 0.76);
+      ctx.fillText("Season Rank: " + seasonRanks[i], 96, canvas.height * 0.76);
     //Adding Time Played for character to canvas
       ctx.font = '19px Roboto';
       ctx.fillStyle = '#ffffff';
@@ -646,15 +668,13 @@ bot.on('message', async message => {
       ctx.font = '19px RobotoBold';
       ctx.fillStyle = '#09d7d0';
       ctx.textAlign = "right";
-      //Disabling artifact power as I do not want to keep bot updated for each season.
-      //ctx.fillText(" + " + artifactPower[i], canvas.width - 8, canvas.height * 0.56);
+      ctx.fillText(" + " + artifactPower[i], canvas.width - 8, canvas.height * 0.56);
     //Adding Base to canvas
       var base = maxLight[i] - artifactPower[i];
       ctx.font = '19px RobotoBold';
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = "right";
-      //Disabling artifact power as I do not want to keep bot updated for each season.
-      //ctx.fillText(base, (canvas.width - 8) - (ctx.measureText(" + " + artifactPower[i]).width), canvas.height * 0.56);
+      ctx.fillText(base, (canvas.width - 8) - (ctx.measureText(" + " + artifactPower[i]).width), canvas.height * 0.56);
     //Adding PvP value to canvas
       ctx.font = '19px Roboto';
       ctx.fillStyle = '#ffffff';
@@ -684,7 +704,7 @@ bot.on('message', async message => {
 
       }
     //Print to console the url of each person's full banner with stats
-      console.log(((leaderboardsChannel.lastMessage.attachments).array()[0].url));
+      //console.log(((leaderboardsChannel.lastMessage.attachments).array()[0].url));
     }
     var endCount =  Date.now();
     console.log(`Completed in: ${(endCount - startCount)/1000} seconds`);
@@ -692,7 +712,7 @@ bot.on('message', async message => {
     //leaderboardsChannel.messages.fetch(firstMessage).then(message => message.edit(leaderboardsChannel.messages.fetch(firstMessage).content + ` Completed in: ${(endCount - startCount)/1000} seconds`)).catch(console.error);
     leaderboardsChannel.messages.cache.first().edit(leaderboardsChannel.messages.cache.first().content + ` Completed in: ${(endCount - startCount)/1000} seconds:`);
     var send = await fetch("https://api.heroku.com/apps/" + process.env.appName + "/config-vars", { method: 'PATCH', headers: herokuHead, body: JSON.stringify({"light": envLight.toString(), "character": envCharacter.toString()})}).then(response => response.json()).catch(error => console.log(error));
-    console.log(send);
+    //console.log(send);
   }else{
     //Deletes any message with a prefix that isn't one of the accepted
     message.delete();
