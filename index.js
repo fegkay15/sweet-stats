@@ -423,7 +423,7 @@ bot.on('message', async message => {
       arrayPromiseReply =  new Array(names.length);
       for(i = 0; i < names.length; i++){
         arrayPromiseReply[i] = new Promise((resolve, reject) => {
-          replyFetch = fetch("https://www.bungie.net/Platform/Destiny2/" + membershipType[i] + "/Profile/" + membershipID[i] + "/?components=200,202", httpOptions).then(response => response.json());
+          replyFetch = fetch("https://www.bungie.net/Platform/Destiny2/" + membershipType[i] + "/Profile/" + membershipID[i] + "/?components=104,200,202", httpOptions).then(response => response.json());
           resolve(replyFetch);
         });
       }
@@ -477,18 +477,19 @@ bot.on('message', async message => {
     //Declarations
       twoHundred = reply.Response.characters.data;
       twoHundredTwo = reply.Response.characterProgressions.data;
+      oneHundredFour = reply.Response.profileProgression.data;
       userCharctersList = Object.keys(twoHundred);
       maxLightCharacterList = replyAccountStats.Response.characters;
       var historicalMaxLight = 0;
       var historicalCharacter = "";
 
     //Stores the amount of light received from artifact
-      if(twoHundredTwo[Object.keys(twoHundredTwo)[0]].progressions[243419342].currentProgress == 0){
+      if(oneHundredFour.seasonalArtifact.pointProgression.currentProgress == 0){
         artifactPower[i] = 0
       }else{
 
-        artifactPower[i] = twoHundredTwo[Object.keys(twoHundredTwo)[0]].progressions[243419342].level;
-        //Used to disable artifact power above
+        artifactPower[i] = oneHundredFour.seasonalArtifact.powerBonus;
+        //Used to disable artifact power above (requires reset of envLight in heroku)
         //artifactPower[i] = 0
       }
       envLight[i] = parseInt(envLight[i]) + parseInt(artifactPower[i]);
