@@ -1,6 +1,7 @@
 const config = require("./config.json");
 const Discord = require("discord.js");
 const Canvas = require('canvas');
+const sqlite3 = require('sqlite3').verbose();
 const originalFetch = require('node-fetch');
 const schedule = require("node-schedule");
 const fetch = require('fetch-retry')(originalFetch, {
@@ -13,7 +14,7 @@ const herokuKey = config.herokuKey;
 const headers = {"X-API-Key": bungieKey};
 const herokuHead = {"Accept":"application/vnd.heroku+json; version=3", "Authorization": "Bearer " + herokuKey, "Content-type": "application/json"};
 const token = config.discordKey;
-const channelID = process.env.channelID;
+//const channelID;
 const autoTime = process.env.autoTime;
 const timezone = process.env.timeZone;
 const httpOptions = { method: 'GET', headers: headers};
@@ -42,7 +43,33 @@ bot.on('message', async message => {
     instance = 1;
   }
 //If the message doesn't start with the prefix and it's in the leaderboards channel and it's made by a user, reset the instance counter and delete their message as the channel should be blank
-	if (!message.content.startsWith(prefix) && message.channel.id == channelID && !message.author.bot){
+
+  let db = new sqlite3.Database('./sweetstats.db', sqlite3.OPEN_READWRITE, (err) => {
+    if (err) {
+      console.error(err.message);
+    }
+    console.log('Connected to the sweetstats database.');
+  });
+
+  const channelID = await new Promise((resolve, reject) => {
+    db.all(`SELECT channelID FROM guildPrefs WHERE guildID = ` + message.guild.id, [], (err, rows) => {
+      if (err){
+        reject(err);
+      }
+      console.log(rows);
+      if(rows[0] == undefined){
+        resolve(undefined);
+      }else{
+        resolve(rows[0].channelID);
+      }
+    })
+  });
+  
+  if(channelID == undefined && message.content.){
+
+  }
+
+  if (!message.content.startsWith(prefix) && message.channel.id == channelID && !message.author.bot){
     message.delete();
     instance = 0;
     return;
@@ -55,6 +82,39 @@ bot.on('message', async message => {
 //Get the command itself seperated from the prefix
 	const args = message.content.slice(prefix.length).split(/ +/);
 	const command = args.shift().toLowerCase();
+
+  const queryResult = await new Promise((resolve, reject) => {
+    db.all(`SELECT destinyPlayers.*, guildPlayers.displayName
+            FROM guildPlayers
+            INNER JOIN destinyPlayers ON guildPlayers.membershipID = destinyPlayers.membershipID
+            WHERE guildPlayers.guildID = ` + message.guild.id, [], (err, rows) => {
+      if (err){
+        reject(err);
+      }
+      resolve(rows);
+    })
+  });
+
+  var membershipID = new Array();
+  var envLight = new Array();
+  var envCharacter = new Array();
+  var names = new Array();
+  var membershipType = new Array();
+
+  for(i = 0; i < queryResult.length; i++){
+    membershipID.push(queryResult[i].membershipID);
+    envLight.push(queryResult[i].light);
+    envCharacter.push(queryResult[i].character);
+    names.push(queryResult[i].displayName);
+    membershipType.push(queryResult[i].membershipType);
+  }
+
+  db.close((err) => {
+    if (err) {
+      console.error(err.message);
+    }
+    console.log('Closed the database connection.');
+  });
 
   if(command === 'setup' && message.member.hasPermission("ADMINISTRATOR")){
     if(bungieKey == ""){
@@ -167,7 +227,7 @@ bot.on('message', async message => {
     if(instance == 0){
       return;
     }
-    var finalSend = await fetch("https://api.heroku.com/apps/" + appName + "/config-vars", { method: 'PATCH', headers: herokuHead, body: JSON.stringify({"channelID": channelReply.substring(channelReply.indexOf('#') + 1,channelReply.indexOf('>')), "autoTime": timeReply, "appName": appName, "setupComplete": "true"})}).then(response => response.json()).catch(error => console.log(error));
+    //var finalSend = await fetch("https://api.heroku.com/apps/" + appName + "/config-vars", { method: 'PATCH', headers: herokuHead, body: JSON.stringify({"channelID": channelReply.substring(channelReply.indexOf('#') + 1,channelReply.indexOf('>')), "autoTime": timeReply, "appName": appName, "setupComplete": "true"})}).then(response => response.json()).catch(error => console.log(error));
     //console.log(finalSend);
     message.reply("Setup complete! Restarting bot.");
     instance = 0;
@@ -331,19 +391,20 @@ bot.on('message', async message => {
   }
 //check if the command is the chosen stat, which is either stat or stats
   if (command === 'stat' || command === 'stats') {
-    if(process.env.setupComplete != "true"){
+    /*if(process.env.setupComplete != "true"){
       message.reply("Bot has not been setup yet. Please have an admin setup up with !setup");
       instance = 0;
       return;
-    }
-    if(process.env.names == undefined || process.env.membershipID == undefined || process.env.membershipType == undefined){
+    }*/
+    /*if(process.env.names == undefined || process.env.membershipID == undefined || process.env.membershipType == undefined){
       message.reply("No players have been added to leaderboards. Please have an admin add players with !add");
       instance = 0;
       return;
-    }
+    }*/
     var author = message.author.bot;
     var user = message.author.id;
   //Clear out the entire channel chosen of all messages
+
     const leaderboardsChannel = message.guild.channels.resolve(channelID);
     leaderboardsChannel.bulkDelete(99);
     const channel = bot.channels.cache.get(channelID);
@@ -355,15 +416,7 @@ bot.on('message', async message => {
     var reply;
     var twoHundred;
     var twoHundredTwo;
-  //Names of each person meant to be displayed
-    var names = new Array();
-    for(i = 0; i < process.env.names.split(",").length; i++){
-      names.push(process.env.names.split(",")[i]);
-    }
   //Each person's original platform number from Bungie (1=Xbox,2=PSN,3=PC. There may be others based on Stadia and Battle.net, but I'm not sure)
-    var membershipType = process.env.membershipType.split(",");
-  //Each persons's user number ID from Bungie
-    var membershipID = process.env.membershipID.split(",");
     var userCharctersList;
   //Need to declare arrays with same value for each index with as many indexes as names.length
     var maxLight = new Array();
@@ -387,24 +440,7 @@ bot.on('message', async message => {
     Canvas.registerFont('roboto-bold.ttf', {family: 'RobotoBold'});
     const canvas = Canvas.createCanvas(474,96);
     const ctx = canvas.getContext('2d');
-    if(process.env.light == undefined){
-      envLight = new Array();
-      for(i = 0; i < names.length; i++){
-          envLight.push("0");
-      }
-    }else{
-      envLight = process.env.light;
-      envLight = envLight.split(",");
-    }
-    if(process.env.character == undefined){
-      envCharacter = new Array();
-      for(i = 0; i < names.length; i++){
-          envCharacter.push("0");
-      }
-    }else{
-      envCharacter = process.env.character;
-      envCharacter = envCharacter.split(",");
-    }
+
     envLightLength = envLight.length;
     envCharacterLength = envCharacter.length;
     if(envLightLength.length < names.length){
@@ -472,6 +508,7 @@ bot.on('message', async message => {
     }
     for(i = 0; i < names.length; i++){
     //HTTP GET Request to url to get necessary info needed for the stat images
+      console.log(arrayReply[i]);
       reply = arrayReply[i];
       replyAccountStats = arrayReplyAccountStats[i];
     //Declarations
@@ -697,11 +734,11 @@ bot.on('message', async message => {
       ctx.textAlign = "left";
       ctx.fillText("PvE:", (canvas.width - 8) - (ctx.measureText(kdaPVE[i]).width) - (ctx.measureText("PvP: ").width), canvas.height * 0.96);
     //Converting canvas to discord attachment
-      const attachment = new Discord.MessageAttachment(canvas.toBuffer(), names[i].replace(/[^\w.]/g,"") + ".jpg");
+      const attachment = new Discord.MessageAttachment(canvas.toBuffer(), names[i].replace(/[^\w.]/g,"_") + ".jpg");
     //Send attachment to chosen channel
       await leaderboardsChannel.send(attachment).catch(error => console.log(error));
     //Just waiting until message has properly posted to Discord
-      while(((leaderboardsChannel.lastMessage.attachments).array()[0].name) != (names[i].replace(/[^\w.]/g,"") + ".jpg")) {
+      while(((leaderboardsChannel.lastMessage.attachments).array()[0].name) != (names[i].replace(/[^\w.]/g,"_") + ".jpg")) {
 
       }
     //Print to console the url of each person's full banner with stats
