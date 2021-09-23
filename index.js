@@ -26,23 +26,26 @@ bot.on("ready", async () => {
   console.log(`Sweet Stats is online!`);
   bot.user.setActivity("Destiny 2");
 //Creates an automatic schedule that will get new stats at designated time. This obviously runs at local system time, so if deployed to something like heroku, which is in GMT time zone, you'll need to set accordingly
-  var reverse = -parseInt(timezone);
+  /*var reverse = -parseInt(timezone);
   var corectedTime = (parseInt(autoTime) + reverse);
   schedule.scheduleJob("0 " + corectedTime.toString() + " * * *", async () => {
     const channel = bot.channels.cache.get(channelID);
     channel.send("!stat");
-  });
+  });*/
 });
 //When a message is detected, do this
 bot.on('message', async message => {
   var startCount =  Date.now();
 //Instance counter to prevent more than one instance of the leadeboards from happening as the code is a bodge and relies on everything happening in a specific order and have two run at the same time causes issues
-  if(instance == 1){
+  /*if(instance == 1){
     return;
   }else{
     instance = 1;
+  }*/
+
+  if(message.author.bot && message.content.toLowerCase() != "!stat"){
+    return;
   }
-//If the message doesn't start with the prefix and it's in the leaderboards channel and it's made by a user, reset the instance counter and delete their message as the channel should be blank
 
   let db = new sqlite3.Database('./sweetstats.db', sqlite3.OPEN_READWRITE, (err) => {
     if (err) {
@@ -65,8 +68,10 @@ bot.on('message', async message => {
     })
   });
   
-  if(channelID == undefined && (message.content.toLowerCase() == "!stat" ||)){
-
+  if(channelID == undefined && (message.content.toLowerCase() == "!stat" || message.content.toLowerCase() == "!stats")){
+    message.reply("Bot has not been setup yet. Please have an admin setup with !setup");
+      instance = 0;
+      return;
   }
 
   if (!message.content.startsWith(prefix) && message.channel.id == channelID && !message.author.bot){
@@ -117,277 +122,16 @@ bot.on('message', async message => {
   });
 
   if(command === 'setup' && message.member.hasPermission("ADMINISTRATOR")){
-    if(bungieKey == ""){
-      message.reply("The Bungie Key is not set in the config.json file");
-      instance = 0;
-      return;
-    }
-    if(herokuKey == ""){
-      message.reply("The Heroku Key is not set in the config.json file");
-      instance = 0;
-      return;
-    }
-    var channelReply = "";
-    var appName = "";
-    var timeReply = 0;
-    var timezoneReply = 0;
-    message.reply("What is the name of the app in heroku? (Get this right or the bot will not work.)");
-    await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
-      console.log(collected.first().content);
-      appName = collected.first().content;
-    }).catch(() => {
-      message.reply('No answer after 30 seconds, operation canceled.');
-      instance = 0;
-    });
-    if(instance == 0){
-      return;
-    }
-    message.reply("Double checking to make sure the app name is correct. Does this link lead you to the app on Heroku? https://dashboard.heroku.com/apps/" + appName);
-    await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 60000}).then(collected => {
-      console.log(collected.first().content);
-      if(collected.first().content.toLowerCase() != 'yes'){
-        message.reply("Please Restart Setup!");
-        instance = 0;
-      }
-    }).catch(() => {
-      message.reply('No answer after 60 seconds, operation canceled.');
-      instance = 0;
-    });
-    if(instance == 0){
-      return;
-    }
-    var testSend = await fetch("https://api.heroku.com/apps/" + appName + "/config-vars", { method: 'GET', headers: herokuHead}).then(response => response.json()).catch(error => console.log(error));
-    //console.log(testSend);
-    if(testSend.id == 'not_found' || testSend.id == 'forbidden'){
-      message.reply("The app name submitted was not valid, or you do not have access to this app.");
-      instance = 0;
-      return;
-    }
-    message.reply("Which channel would you like to be the leaderboards channel? (Use # to tag the channel)");
-    await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
-      console.log(collected.first().content);
-      if((collected.first().content.match(/<#/g) || []).length == 1){
-        channelReply = collected.first().content;
-      }else{
-        message.reply("You either added more than one channel tag in your reply, or didn't provide one.");
-        instance = 0;
-      }
-    }).catch(() => {
-      message.reply('No answer after 30 seconds, operation canceled.');
-      instance = 0;
-    });
-    if(instance == 0){
-      return;
-    }
-    message.reply("What hour of the day (in 24 hour format) would you like the bot to automatically update the leaderboards?");
-    await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
-      console.log(collected.first().content);
-      rep = collected.first().content;
-      if(parseInt(rep) != NaN && parseInt(rep) >= 0 && parseInt(rep) <= 23){
-        timeReply = parseInt(rep);
-      }else{
-        message.reply("You did not reply with a proper number between 0 and 23")
-        instance = 0;
-      }
-    }).catch(() => {
-      message.reply('No answer after 30 seconds, operation canceled.');
-      instance = 0;
-    });
-    if(instance == 0){
-      return;
-    }
-    message.reply("Is " + ((timeReply > 12)? timeReply -12 : ((timeReply == 0)? 12 : timeReply)) + ((timeReply > 12)? "pm" : "am") + " the chosen time?");
-    await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
-      console.log(collected.first().content);
-      if(collected.first().content.toLowerCase() != 'yes'){
-        message.reply("Please Restart Setup!");
-        instance = 0;
-      }
-    }).catch(() => {
-      message.reply('No answer after 30 seconds, operation canceled.');
-      instance = 0;
-    });
-    if(instance == 0){
-      return;
-    }
-    message.reply("What is your time difference from UTC/GMT? If you don't know what that means, or are not sure, go here: https://time.is/compare/UTC");
-    await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 60000}).then(collected => {
-      console.log(collected.first().content);
-      timezoneReply = collected.first().content;
-      if(parseInt(timezoneReply) != NaN && parseInt(timezoneReply) >= -12 && parseInt(timezoneReply) <= 12){
-        timezoneReply = parseInt(timezoneReply);
-      }else{
-        message.reply("You did not reply with a proper number between -12 and 12")
-        instance = 0;
-      }
-    }).catch(() => {
-      message.reply('No answer after 60 seconds, operation canceled.');
-      instance = 0;
-    });
-    if(instance == 0){
-      return;
-    }
-    //var finalSend = await fetch("https://api.heroku.com/apps/" + appName + "/config-vars", { method: 'PATCH', headers: herokuHead, body: JSON.stringify({"channelID": channelReply.substring(channelReply.indexOf('#') + 1,channelReply.indexOf('>')), "autoTime": timeReply, "appName": appName, "setupComplete": "true"})}).then(response => response.json()).catch(error => console.log(error));
-    //console.log(finalSend);
-    message.reply("Setup complete! Restarting bot.");
-    instance = 0;
-    return;
+    
   }
   if (command === 'add' && message.member.hasPermission("ADMINISTRATOR")){
-    if(process.env.setupComplete != "true"){
-      message.reply("Bot has not been setup yet. Please have an admin setup up with !setup");
-      instance = 0;
-      return;
-    }
-    namesReply = process.env.names.split(",");
-    idReply = process.env.membershipID.split(",");
-    typeReply = process.env.membershipType.split(",");
-    redo = true;
-    while(redo == true){
-      nameReply = "";
-      membershipIDReply = "";
-      membershipTypeReply = "";
-      message.reply("What is name of the person you would like to add?");
-      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
-        console.log(collected.first().content);
-        nameReply = collected.first().content;
-      }).catch(() => {
-        message.reply('No answer after 30 seconds, operation canceled.');
-        instance = 0;
-      });
-      if(instance == 0){
-        return;
-      }
-      message.reply("Is " + nameReply + " the correct name you want?");
-      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
-        console.log(collected.first().content);
-        if(collected.first().content.toLowerCase() != 'yes'){
-          message.reply("Please Restart Setup!");
-          instance = 0;
-        }
-      }).catch(() => {
-        message.reply('No answer after 30 seconds, operation canceled.');
-        instance = 0;
-      });
-      if(instance == 0){
-        return;
-      }
-      message.reply("Now you need to provide the membershipType and membershipID variables for this player. To do this, you will use https://wastedondestiny.com/ Find the player on there, click on view more, and then click on 'View Profile on Bungie.net' then copy and paste the url here as the reply.");
-      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 120000}).then(collected => {
-        console.log(collected.first().content);
-        urlReply = collected.first().content.toLowerCase();
-        //console.log(urlReply);
-        if(urlReply.startsWith("https://www.bungie.net/en/profile/") || urlReply.startsWith("http://www.bungie.net/en/profile/")){
-          membershipTypeReply = urlReply.substring(urlReply.indexOf("profile/") + 8,urlReply.indexOf("profile/") + 9);
-          membershipIDReply = urlReply.substring(urlReply.lastIndexOf("/") + 1)
-        }else{
-          message.reply("Not a valid URL.");
-          instance = 0;
-        }
-      }).catch(() => {
-        message.reply('No answer after 2 minutes, operation canceled.');
-        instance = 0;
-      });
-      if(instance == 0){
-        return;
-      }
-      message.reply("Would you like to add another player?");
-      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
-        console.log(collected.first().content);
-        if(collected.first().content.toLowerCase() != 'yes'){
-            redo = false;
-        }
-      }).catch(() => {
-        message.reply('No answer after 30 seconds, operation canceled.');
-        instance = 0;
-      });
-      if(instance == 0){
-        return;
-      }
-      namesReply.push(nameReply);
-      idReply.push(membershipIDReply);
-      typeReply.push(membershipTypeReply);
-    }
-    var finalSend = await fetch("https://api.heroku.com/apps/" + process.env.appName + "/config-vars", { method: 'PATCH', headers: herokuHead, body: JSON.stringify({"names": namesReply.toString(), "membershipID": idReply.toString(), "membershipType": typeReply.toString()})}).then(response => response.json()).catch(error => console.log(error));
-    //console.log(finalSend);
-    message.reply("Addition complete! Restarting bot.");
-    instance = 0;
-    return;
+    
   }
   if (command === 'remove' && message.member.hasPermission("ADMINISTRATOR")){
-    if(process.env.setupComplete != "true"){
-      message.reply("Bot has not been setup yet. Please have an admin setup up with !setup");
-      instance = 0;
-      return;
-    }
-    namesReply = process.env.names.split(",");
-    idReply = process.env.membershipID.split(",");
-    typeReply = process.env.membershipType.split(",");
-    characterReply = process.env.character.split(",");
-    lightReply = process.env.light.split(",");
-    redo = true;
-    while(redo == true){
-      indexReply = -1;
-      message.reply("What is name of the person you would like to remove?");
-      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
-        console.log(collected.first().content);
-        if(namesReply.indexOf(collected.first().content) >= 0){
-          indexReply = namesReply.indexOf(collected.first().content);
-        }else{
-          message.reply("Couldn't find a player by that name.");
-          instance = 0;
-        }
-      }).catch(() => {
-        message.reply('No answer after 30 seconds, operation canceled.');
-        instance = 0;
-      });
-      if(instance == 0){
-        return;
-      }
-      message.reply("Confirm that you want to remove "+ namesReply[indexReply] + ". Yes or no?");
-      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
-        console.log(collected.first().content);
-        if(collected.first().content.toLowerCase() != 'yes'){
-            instance = 0;
-        }
-      }).catch(() => {
-        message.reply('No answer after 30 seconds, operation canceled.');
-        instance = 0;
-      });
-      if(instance == 0){
-        return;
-      }
-      namesReply.splice(indexReply,1);
-      idReply.splice(indexReply,1);
-      typeReply.splice(indexReply,1);
-      characterReply.splice(indexReply,1);
-      lightReply.splice(indexReply,1);
-      message.reply("Would you like to remove another player?");
-      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
-        console.log(collected.first().content);
-        if(collected.first().content.toLowerCase() != 'yes'){
-            redo = false
-        }
-      }).catch(() => {
-        message.reply('No answer after 30 seconds, operation canceled.');
-        instance = 0;
-      });
-      if(instance == 0){
-        return;
-      }
-    }
-    var finalSend = await fetch("https://api.heroku.com/apps/" + process.env.appName + "/config-vars", { method: 'PATCH', headers: herokuHead, body: JSON.stringify({"names": namesReply.toString(), "membershipID": idReply.toString(), "membershipType": typeReply.toString(), "character": characterReply.toString(), "light": lightReply.toString()})}).then(response => response.json()).catch(error => console.log(error));
-    //console.log(finalSend);
-    message.reply("Removal complete! Restarting bot.");
-    instance = 0;
-    return;
+    
   }
-//Manual command to make bot send !stat
   if (command === 'manual' && message.member.hasPermission("ADMINISTRATOR")){
-    instance = 0;
-    const channel = bot.channels.cache.get(channelID);
-    channel.send("!stat");
-    return;
+    
   }
 //check if the command is the chosen stat, which is either stat or stats
   if (command === 'stat' || command === 'stats') {
@@ -749,7 +493,7 @@ bot.on('message', async message => {
 
     //leaderboardsChannel.messages.fetch(firstMessage).then(message => message.edit(leaderboardsChannel.messages.fetch(firstMessage).content + ` Completed in: ${(endCount - startCount)/1000} seconds`)).catch(console.error);
     leaderboardsChannel.messages.cache.first().edit(leaderboardsChannel.messages.cache.first().content + ` Completed in: ${(endCount - startCount)/1000} seconds:`);
-    var send = await fetch("https://api.heroku.com/apps/" + process.env.appName + "/config-vars", { method: 'PATCH', headers: herokuHead, body: JSON.stringify({"light": envLight.toString(), "character": envCharacter.toString()})}).then(response => response.json()).catch(error => console.log(error));
+    //var send = await fetch("https://api.heroku.com/apps/" + process.env.appName + "/config-vars", { method: 'PATCH', headers: herokuHead, body: JSON.stringify({"light": envLight.toString(), "character": envCharacter.toString()})}).then(response => response.json()).catch(error => console.log(error));
     //console.log(send);
   }else{
     //Deletes any message with a prefix that isn't one of the accepted
