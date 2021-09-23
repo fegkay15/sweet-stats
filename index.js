@@ -65,7 +65,7 @@ bot.on('message', async message => {
     })
   });
   
-  if(channelID == undefined && message.content.){
+  if(channelID == undefined && (message.content.toLowerCase() == "!stat" ||)){
 
   }
 
