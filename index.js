@@ -18,7 +18,6 @@ const token = config.discordKey;
 const autoTime = process.env.autoTime;
 const timezone = process.env.timeZone;
 const httpOptions = { method: 'GET', headers: headers};
-var instance = 0;
 const bot = new Discord.Client({disableEveryone: true});
 
 //Initialization of the bot
@@ -36,13 +35,8 @@ bot.on("ready", async () => {
 //When a message is detected, do this
 bot.on('message', async message => {
   var startCount =  Date.now();
-//Instance counter to prevent more than one instance of the leadeboards from happening as the code is a bodge and relies on everything happening in a specific order and have two run at the same time causes issues
-  /*if(instance == 1){
-    return;
-  }else{
-    instance = 1;
-  }*/
 
+  
   if(message.author.bot && message.content.toLowerCase() != "!stat"){
     return;
   }
@@ -54,12 +48,20 @@ bot.on('message', async message => {
     console.log('Connected to the sweetstats database.');
   });
 
+  function dbClose(database){
+    database.close((err) => {
+      if (err) {
+        console.error(err.message);
+      }
+      console.log('Closed the database connection.');
+    });
+  }
+
   const channelID = await new Promise((resolve, reject) => {
     db.all(`SELECT channelID FROM guildPrefs WHERE guildID = ` + message.guild.id, [], (err, rows) => {
       if (err){
         reject(err);
       }
-      console.log(rows);
       if(rows[0] == undefined){
         resolve(undefined);
       }else{
@@ -70,20 +72,27 @@ bot.on('message', async message => {
   
   if(channelID == undefined && (message.content.toLowerCase() == "!stat" || message.content.toLowerCase() == "!stats")){
     message.reply("Bot has not been setup yet. Please have an admin setup with !setup");
-      instance = 0;
-      return;
+    dbClose(db);
+    return;
   }
 
   if (!message.content.startsWith(prefix) && message.channel.id == channelID && !message.author.bot){
     message.delete();
-    instance = 0;
+    dbClose(db);
     return;
   }
-//All else fails, if the message doesn't start with the prefix, just reset instance and return.
-  if (!message.content.startsWith(prefix)){
-    instance = 0;
+
+  var comms = ['!stat', '!stats', '!setup', '!add', '!remove', '!manual'];
+  if (comms.indexOf(message.content.toLowerCase() ) == -1 && !message.author.bot) {
+    if(message.channel.id == channelID){
+      message.delete()
+      dbClose(db);
+      return;
+    }
+    dbClose(db);
     return;
   }
+
 //Get the command itself seperated from the prefix
 	const args = message.content.slice(prefix.length).split(/ +/);
 	const command = args.shift().toLowerCase();
@@ -114,12 +123,14 @@ bot.on('message', async message => {
     membershipType.push(queryResult[i].membershipType);
   }
 
-  db.close((err) => {
-    if (err) {
-      console.error(err.message);
-    }
-    console.log('Closed the database connection.');
-  });
+
+  var compareLight = [];
+  var compareCharacter = [];
+
+  for (p = 0; p < envLight.length; p++) {
+    compareLight[p] = envLight[p];
+    compareCharacter[p] = envCharacter[p];
+  }
 
   if(command === 'setup' && message.member.hasPermission("ADMINISTRATOR")){
     
@@ -135,16 +146,7 @@ bot.on('message', async message => {
   }
 //check if the command is the chosen stat, which is either stat or stats
   if (command === 'stat' || command === 'stats') {
-    /*if(process.env.setupComplete != "true"){
-      message.reply("Bot has not been setup yet. Please have an admin setup up with !setup");
-      instance = 0;
-      return;
-    }*/
-    /*if(process.env.names == undefined || process.env.membershipID == undefined || process.env.membershipType == undefined){
-      message.reply("No players have been added to leaderboards. Please have an admin add players with !add");
-      instance = 0;
-      return;
-    }*/
+    
     var author = message.author.bot;
     var user = message.author.id;
   //Clear out the entire channel chosen of all messages
@@ -252,7 +254,7 @@ bot.on('message', async message => {
     }
     for(i = 0; i < names.length; i++){
     //HTTP GET Request to url to get necessary info needed for the stat images
-      console.log(arrayReply[i]);
+      //console.log(arrayReply[i]);
       reply = arrayReply[i];
       replyAccountStats = arrayReplyAccountStats[i];
     //Declarations
@@ -479,30 +481,77 @@ bot.on('message', async message => {
       ctx.fillText("PvE:", (canvas.width - 8) - (ctx.measureText(kdaPVE[i]).width) - (ctx.measureText("PvP: ").width), canvas.height * 0.96);
     //Converting canvas to discord attachment
       const attachment = new Discord.MessageAttachment(canvas.toBuffer(), names[i].replace(/[^\w.]/g,"_") + ".jpg");
-    //Send attachment to chosen channel
+
+      //leaderboardsChannel.send(new Discord.MessageEmbed().attachFiles(attachment).setImage("attachment://" + attachment.name));
+      
+      //Send attachment to chosen channel
       await leaderboardsChannel.send(attachment).catch(error => console.log(error));
     //Just waiting until message has properly posted to Discord
       while(((leaderboardsChannel.lastMessage.attachments).array()[0].name) != (names[i].replace(/[^\w.]/g,"_") + ".jpg")) {
 
       }
+      
     //Print to console the url of each person's full banner with stats
       //console.log(((leaderboardsChannel.lastMessage.attachments).array()[0].url));
     }
+
+    
+
+    if(JSON.stringify(envLight) != JSON.stringify(compareLight) || JSON.stringify(envCharacter) != JSON.stringify(compareCharacter)){
+      //Construct query update for changes to database
+      var queryMembershipID = [];
+      var updateLightQuery = "UPDATE destinyPlayers "
+      if(JSON.stringify(envLight) != JSON.stringify(compareLight)){
+        updateLightQuery = updateLightQuery + "SET light = CASE membershipID"
+        for(m = 0; m < envLight.length; m ++){
+          if(envLight[m] != compareLight[m] || envCharacter[m] != compareCharacter[m]){
+            updateLightQuery = updateLightQuery + " WHEN " + membershipID[m] + " THEN " + envLight[m]
+            queryMembershipID.push(membershipID[m]);
+          }
+        }
+      }
+    
+      if(JSON.stringify(envCharacter) != JSON.stringify(compareCharacter)){
+        if(JSON.stringify(envLight) != JSON.stringify(compareLight)){
+          updateLightQuery = updateLightQuery + " END, character = CASE membershipID"
+        }else{
+          updateLightQuery = updateLightQuery + "SET character = CASE membershipID"
+        }
+        for(m = 0; m < envCharacter.length; m ++){
+          if(envCharacter[m] != compareCharacter[m] || envLight[m] != compareLight[m]){
+            updateLightQuery = updateLightQuery + " WHEN " + membershipID[m] + " THEN " + envCharacter[m]
+            if(!queryMembershipID.includes(membershipID[m])){
+              queryMembershipID.push(membershipID[m]);
+            }
+          }
+        }
+      }
+      updateLightQuery = updateLightQuery + " END WHERE membershipID IN " + JSON.stringify(queryMembershipID).replace("[","(").replace("]",")")
+      await new Promise((resolve, reject) => {
+        db.all(updateLightQuery, [], function(err) {
+          if (err) {
+            reject(err);
+          }
+          resolve();
+        });
+      });
+    }
+
+    dbClose(db);
+
     var endCount =  Date.now();
     console.log(`Completed in: ${(endCount - startCount)/1000} seconds`);
 
     //leaderboardsChannel.messages.fetch(firstMessage).then(message => message.edit(leaderboardsChannel.messages.fetch(firstMessage).content + ` Completed in: ${(endCount - startCount)/1000} seconds`)).catch(console.error);
     leaderboardsChannel.messages.cache.first().edit(leaderboardsChannel.messages.cache.first().content + ` Completed in: ${(endCount - startCount)/1000} seconds:`);
+    
     //var send = await fetch("https://api.heroku.com/apps/" + process.env.appName + "/config-vars", { method: 'PATCH', headers: herokuHead, body: JSON.stringify({"light": envLight.toString(), "character": envCharacter.toString()})}).then(response => response.json()).catch(error => console.log(error));
     //console.log(send);
   }else{
     //Deletes any message with a prefix that isn't one of the accepted
     message.delete();
-    instance = 0;
     return;
   }
-  //Resets instance
-  instance = 0;
   return;
 });
 
