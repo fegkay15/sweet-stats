@@ -19,6 +19,7 @@ const autoTime = process.env.autoTime;
 const timezone = process.env.timeZone;
 const httpOptions = { method: 'GET', headers: headers};
 const bot = new Discord.Client({disableEveryone: true});
+var instanceDict = {};
 
 //Initialization of the bot
 bot.on("ready", async () => {
@@ -85,7 +86,7 @@ bot.on('message', async message => {
   var comms = ['!stat', '!stats', '!setup', '!add', '!remove', '!manual'];
   if (comms.indexOf(message.content.toLowerCase() ) == -1 && !message.author.bot) {
     if(message.channel.id == channelID){
-      message.delete()
+      message.delete();
       dbClose(db);
       return;
     }
@@ -97,56 +98,74 @@ bot.on('message', async message => {
 	const args = message.content.slice(prefix.length).split(/ +/);
 	const command = args.shift().toLowerCase();
 
-  const queryResult = await new Promise((resolve, reject) => {
-    db.all(`SELECT destinyPlayers.*, guildPlayers.displayName
-            FROM guildPlayers
-            INNER JOIN destinyPlayers ON guildPlayers.membershipID = destinyPlayers.membershipID
-            WHERE guildPlayers.guildID = ` + message.guild.id, [], (err, rows) => {
-      if (err){
-        reject(err);
-      }
-      resolve(rows);
-    })
-  });
-
-  var membershipID = new Array();
-  var envLight = new Array();
-  var envCharacter = new Array();
-  var names = new Array();
-  var membershipType = new Array();
-
-  for(i = 0; i < queryResult.length; i++){
-    membershipID.push(queryResult[i].membershipID);
-    envLight.push(queryResult[i].light);
-    envCharacter.push(queryResult[i].character);
-    names.push(queryResult[i].displayName);
-    membershipType.push(queryResult[i].membershipType);
-  }
-
-
-  var compareLight = [];
-  var compareCharacter = [];
-
-  for (p = 0; p < envLight.length; p++) {
-    compareLight[p] = envLight[p];
-    compareCharacter[p] = envCharacter[p];
+  var guildID = message.guild.id;
+  if(instanceDict[guildID] != undefined){
+    message.delete();
+    dbClose(db);
+    return;
+  }else{
+    instanceDict[guildID] = ".";
   }
 
   if(command === 'setup' && message.member.hasPermission("ADMINISTRATOR")){
     
+
+    delete instanceDict[message.guild.id];
   }
   if (command === 'add' && message.member.hasPermission("ADMINISTRATOR")){
     
+
+    delete instanceDict[message.guild.id];
   }
   if (command === 'remove' && message.member.hasPermission("ADMINISTRATOR")){
     
+
+    delete instanceDict[message.guild.id];
   }
   if (command === 'manual' && message.member.hasPermission("ADMINISTRATOR")){
-    
+  
+
+    delete instanceDict[message.guild.id];
   }
+
 //check if the command is the chosen stat, which is either stat or stats
   if (command === 'stat' || command === 'stats') {
     
+    const queryResult = await new Promise((resolve, reject) => {
+      db.all(`SELECT destinyPlayers.*, guildPlayers.displayName
+              FROM guildPlayers
+              INNER JOIN destinyPlayers ON guildPlayers.membershipID = destinyPlayers.membershipID
+              WHERE guildPlayers.guildID = ` + message.guild.id, [], (err, rows) => {
+        if (err){
+          reject(err);
+        }
+        resolve(rows);
+      })
+    });
+  
+    var membershipID = new Array();
+    var envLight = new Array();
+    var envCharacter = new Array();
+    var names = new Array();
+    var membershipType = new Array();
+  
+    for(i = 0; i < queryResult.length; i++){
+      membershipID.push(queryResult[i].membershipID);
+      envLight.push(queryResult[i].light);
+      envCharacter.push(queryResult[i].character);
+      names.push(queryResult[i].displayName);
+      membershipType.push(queryResult[i].membershipType);
+    }
+  
+  
+    var compareLight = [];
+    var compareCharacter = [];
+  
+    for (p = 0; p < envLight.length; p++) {
+      compareLight[p] = envLight[p];
+      compareCharacter[p] = envCharacter[p];
+    }
+
     var author = message.author.bot;
     var user = message.author.id;
   //Clear out the entire channel chosen of all messages
@@ -496,8 +515,7 @@ bot.on('message', async message => {
     }
 
     
-
-    if(JSON.stringify(envLight) != JSON.stringify(compareLight) || JSON.stringify(envCharacter) != JSON.stringify(compareCharacter)){
+    if(JSON.stringify(envLight.map(String)) != JSON.stringify(compareLight) || JSON.stringify(envCharacter) != JSON.stringify(compareCharacter)){
       //Construct query update for changes to database
       var queryMembershipID = [];
       var updateLightQuery = "UPDATE destinyPlayers "
@@ -527,6 +545,7 @@ bot.on('message', async message => {
         }
       }
       updateLightQuery = updateLightQuery + " END WHERE membershipID IN " + JSON.stringify(queryMembershipID).replace("[","(").replace("]",")")
+      console.log(updateLightQuery);
       await new Promise((resolve, reject) => {
         db.all(updateLightQuery, [], function(err) {
           if (err) {
@@ -547,6 +566,8 @@ bot.on('message', async message => {
     
     //var send = await fetch("https://api.heroku.com/apps/" + process.env.appName + "/config-vars", { method: 'PATCH', headers: herokuHead, body: JSON.stringify({"light": envLight.toString(), "character": envCharacter.toString()})}).then(response => response.json()).catch(error => console.log(error));
     //console.log(send);
+
+    delete instanceDict[message.guild.id];
   }else{
     //Deletes any message with a prefix that isn't one of the accepted
     message.delete();
