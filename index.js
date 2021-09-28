@@ -171,7 +171,7 @@ bot.on('message', async message => {
   //Clear out the entire channel chosen of all messages
 
     const leaderboardsChannel = message.guild.channels.resolve(channelID);
-    leaderboardsChannel.bulkDelete(99);
+    leaderboardsChannel.bulkDelete(99).catch(error => console.log(error.stack));
     const channel = bot.channels.cache.get(channelID);
   //If the message was from a user, let them know it'll be a second
     if(!author){
@@ -412,7 +412,7 @@ bot.on('message', async message => {
         artifactPower[i] = sortedByLight[i].artifactPower;
     }
   //Clearing chosen Leaderboards Channel of all messages to prep for new post
-    leaderboardsChannel.bulkDelete(99);
+    leaderboardsChannel.bulkDelete(99).catch(error => console.log(error.stack));
   //Checking if the bot initiated the command (From 10am daily) or if a user initiated and giving the corresponsing header output
     if(author){
     //Sending automatic initiated message for 10am
