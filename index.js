@@ -37,6 +37,9 @@ bot.on("ready", async () => {
 bot.on('message', async message => {
   var startCount =  Date.now();
 
+  if(!message.guild.me.hasPermission("SEND_MESSAGES") || !message.guild.me.hasPermission("MANAGE_MESSAGES") || !message.guild.me.hasPermission("EMBED_LINKS") || !message.guild.me.hasPermission("ATTACH_FILES") || !message.guild.me.hasPermission("READ_MESSAGE_HISTORY")){
+    return;
+  }
   
   if(message.author.bot && message.content.toLowerCase() != "!stat"){
     return;
@@ -70,8 +73,20 @@ bot.on('message', async message => {
       }
     })
   });
+
+  var channelPerm;
+  if(channelID != undefined){
+    channelPerm = message.guild.channels.resolve(channelID);
+  }else{
+    channelPerm = message.channel;
+  }
+
+  if(!message.guild.me.permissionsIn(channelPerm).has("SEND_MESSAGES") || !message.guild.me.permissionsIn(channelPerm).has("MANAGE_MESSAGES") || !message.guild.me.permissionsIn(channelPerm).has("EMBED_LINKS") || !message.guild.me.permissionsIn(channelPerm).has("ATTACH_FILES") || !message.guild.me.permissionsIn(channelPerm).has("READ_MESSAGE_HISTORY")){
+    dbClose(db);
+    return;
+  }
   
-  if(channelID == undefined && (message.content.toLowerCase() == "!stat" || message.content.toLowerCase() == "!stats")){
+  if(channelID == undefined && (message.content.toLowerCase() == "!stat" || message.content.toLowerCase() == "!stats" || message.content.toLowerCase() == "!add" || message.content.toLowerCase() == "!remove")){
     message.reply("Bot has not been setup yet. Please have an admin setup with !setup");
     dbClose(db);
     return;
@@ -97,6 +112,7 @@ bot.on('message', async message => {
 //Get the command itself seperated from the prefix
 	const args = message.content.slice(prefix.length).split(/ +/);
 	const command = args.shift().toLowerCase();
+  const leaderboardsChannel = message.guild.channels.resolve(channelID);
 
   var guildID = message.guild.id;
   if(instanceDict[guildID] != undefined){
@@ -108,24 +124,162 @@ bot.on('message', async message => {
   }
 
   if(command === 'setup' && message.member.hasPermission("ADMINISTRATOR")){
-    
+    var updateChannel = false;
+    if(channelID != undefined){
+      message.reply("It looks like you already have a channel set. Are you trying to change it?");
+      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
+        if(collected.first().content.toLowerCase() != 'yes'){
+          message.reply("Have a good day!");
+          delete instanceDict[guildID];
+          dbClose(db);
+          return;
+        }
+        updateChannel = true;
+      }).catch(() => {
+        message.reply('No answer after 30 seconds, operation canceled.');
+        delete instanceDict[guildID];
+        dbClose(db);
+        return;
+      });
+    }
 
-    delete instanceDict[message.guild.id];
+    message.reply("Which channel would you like to be the leaderboards channel? (Use # to tag the channel) This should be a new channel dedicated to the bot as the bot will delete all messages everytime it runs!");
+    await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
+      console.log(collected.first().content);
+      if((collected.first().content.match(/<#/g) || []).length == 1){
+        channelReply = collected.first().content;
+      }else{
+        message.reply("You either added more than one channel tag in your reply, or didn't provide one.");
+        delete instanceDict[guildID];
+        dbClose(db);
+        return;
+      }
+    }).catch(() => {
+      message.reply('No answer after 30 seconds, operation canceled.');
+      delete instanceDict[guildID];
+      dbClose(db);
+      return;
+    });
+
+    if(updateChannel){
+      await new Promise((resolve, reject) => {
+        db.all("UPDATE guildPrefs SET channelID = " + channelReply.substring(channelReply.indexOf('#') + 1,channelReply.indexOf('>')) + " WHERE guildID = " + message.guild.id, [], function(err) {
+          if (err) {
+            reject(err);
+          }
+          resolve();
+        });
+      });
+    }else{
+      await new Promise((resolve, reject) => {
+        db.all("INSERT INTO guildPrefs (guildID,channelID) VALUES(" + message.guild.id + "," + channelReply.substring(channelReply.indexOf('#') + 1,channelReply.indexOf('>')) + ")", [], function(err) {
+          if (err) {
+            reject(err);
+          }
+          resolve();
+        });
+      });
+    }
+
+    message.reply("Bot setup is complete. Now add Destiny players with !add");
+    delete instanceDict[guildID];
+    dbClose(db);
+    return;
   }
   if (command === 'add' && message.member.hasPermission("ADMINISTRATOR")){
     
 
-    delete instanceDict[message.guild.id];
+    delete instanceDict[guildID];
   }
   if (command === 'remove' && message.member.hasPermission("ADMINISTRATOR")){
-    
+    const queryResult = await new Promise((resolve, reject) => {
+      db.all(`SELECT membershipID,displayName
+              FROM guildPlayers
+              WHERE guildID = ` + message.guild.id, [], (err, rows) => {
+        if (err){
+          reject(err);
+        }
+        resolve(rows);
+      })
+    });
 
-    delete instanceDict[message.guild.id];
+    if(queryResult[0] == undefined){
+      message.reply("There are no members added to this leaderboard. Trying adding them with !add");
+      delete instanceDict[guildID];
+      dbClose(db);
+      return;
+    }
+  
+    var membershipID = new Array();
+    var names = new Array();
+    var memberList = "\n";
+    for(n = 0; n < queryResult.length; n++){
+      membershipID.push(queryResult[n].membershipID);
+      names.push(queryResult[n].displayName);
+      memberList = memberList + (n+1) + ". " + queryResult[n].displayName + "\n";
+    }
+    message.reply(memberList);
+    var successfulReply = false;
+    var redo = true;
+    while(redo == true){
+      message.reply("What is the number corresponding to the person you would like to remove? Would you like to try again? Yes or no.");
+      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
+        //console.log(collected.first().content);
+        if(!collected.first().content.match(/^\d+$/)){
+          message.reply("\n\n\nYou did not enter a number by itself! Would you like to try again? Yes or no.");
+        }else if(collected.first().content > names.length || collected.first().content < 1){
+          message.reply("\n\n\nYou typed a number that isn't one of the numbers listed");
+        }else{
+          message.reply("\n\n\nAre you sure you want to remove " + names[(Integer.parseInt(collected.first().content) - 1)]);
+          successfulReply = true;
+        }
+      }).catch(() => {
+        message.reply('No answer after 30 seconds, operation canceled.');
+        delete instanceDict[guildID];
+        dbClose(db);
+        redo = false;
+        return;
+      });
+      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
+        if(successfulReply){
+          if(collected.first().content.toLowerCase() == 'yes'){
+            
+
+
+            delete instanceDict[guildID];
+            dbClose(db);
+            return;
+          }
+        }else{
+          if(collected.first().content.toLowerCase() != 'yes'){
+            message.reply("Have a good day!");
+            delete instanceDict[guildID];
+            dbClose(db);
+            return;
+          }
+        }
+      }).catch(() => {
+        message.reply('No answer after 30 seconds, operation canceled.');
+        delete instanceDict[guildID];
+        dbClose(db);
+        redo = false;
+        return;
+      });
+    }
+
+
+
+
+
+
+    delete instanceDict[guildID];
+    dbClose(db);
+    return;
   }
   if (command === 'manual' && message.member.hasPermission("ADMINISTRATOR")){
-  
+    
 
-    delete instanceDict[message.guild.id];
+    delete instanceDict[guildID];
   }
 
 //check if the command is the chosen stat, which is either stat or stats
@@ -170,13 +324,13 @@ bot.on('message', async message => {
     var user = message.author.id;
   //Clear out the entire channel chosen of all messages
 
-    const leaderboardsChannel = message.guild.channels.resolve(channelID);
     leaderboardsChannel.bulkDelete(99).catch(error => console.log(error.stack));
     const channel = bot.channels.cache.get(channelID);
   //If the message was from a user, let them know it'll be a second
     if(!author){
-      channel.send("<@" + user + ">, Please wait while I process the stats!");
+      channel.send("<@" + user + ">, Please wait while I process the stats!").catch(error => console.log(error));
     }
+
   //A whole wack ton of declarations
     var reply;
     var twoHundred;
@@ -416,20 +570,12 @@ bot.on('message', async message => {
   //Checking if the bot initiated the command (From 10am daily) or if a user initiated and giving the corresponsing header output
     if(author){
     //Sending automatic initiated message for 10am
-      channel.send("Good morning fireteam! Here is your daily leaderboards, brought to you everyday at "+ autoTime + ((parseInt(autoTime) > 11)? "pm" : "am") + ". To manually update, please use the command !stat.");
+      channel.send("Good morning fireteam! Here is your daily leaderboards. To manually update, please use the command !stat.");
     }else{
-    //Getting curent date and time to have for manual message
-      var today = new Date();
-      today.setHours(today.getHours() + parseInt(timezone));
-      var hour = (today.getHours() > 12)? today.getHours() -12 : today.getHours();
-      if(hour == 0){
-        hour = 12;
-      }
-      var ampm = (today.getHours() > 11)? "PM" : "AM";
-      var date = (today.getMonth()+1) + '/' + today.getDate() + '/' + today.getFullYear().toString().slice(-2) + " at " + hour + ':' + (today.getMinutes()<10?'0':'') + today.getMinutes() + ampm;
-    //Sending manual initiated message
-      channel.send("Last updated manually by <@" + user + "> on: " + date + ". To manually update, please use the command !stat.");
+      //Sending manual initiated message
+      channel.send("Last updated manually by <@" + user + ">. To manually update, please use the command !stat.");
     }
+    
   //Loop to create the character images for each player
     for(i = 0; i < names.length; i++){
     //Declarations
@@ -567,7 +713,7 @@ bot.on('message', async message => {
     //var send = await fetch("https://api.heroku.com/apps/" + process.env.appName + "/config-vars", { method: 'PATCH', headers: herokuHead, body: JSON.stringify({"light": envLight.toString(), "character": envCharacter.toString()})}).then(response => response.json()).catch(error => console.log(error));
     //console.log(send);
 
-    delete instanceDict[message.guild.id];
+    delete instanceDict[guildID];
   }else{
     //Deletes any message with a prefix that isn't one of the accepted
     message.delete();
