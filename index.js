@@ -35,6 +35,15 @@ bot.on("ready", async () => {
 });
 //When a message is detected, do this
 bot.on('message', async message => {
+  var guildID = message.guild.id;
+  if(instanceDict[guildID] != undefined){
+    if(!message.author.bot){
+      message.delete();
+      return;
+    }
+  }else if(!message.author.bot || (message.author.bot && message.content == "!stat")){
+    instanceDict[guildID] = ".";
+  }
   var startCount =  Date.now();
 
   if(!message.guild.me.hasPermission("SEND_MESSAGES") || !message.guild.me.hasPermission("MANAGE_MESSAGES") || !message.guild.me.hasPermission("EMBED_LINKS") || !message.guild.me.hasPermission("ATTACH_FILES") || !message.guild.me.hasPermission("READ_MESSAGE_HISTORY")){
@@ -82,18 +91,21 @@ bot.on('message', async message => {
   }
 
   if(!message.guild.me.permissionsIn(channelPerm).has("SEND_MESSAGES") || !message.guild.me.permissionsIn(channelPerm).has("MANAGE_MESSAGES") || !message.guild.me.permissionsIn(channelPerm).has("EMBED_LINKS") || !message.guild.me.permissionsIn(channelPerm).has("ATTACH_FILES") || !message.guild.me.permissionsIn(channelPerm).has("READ_MESSAGE_HISTORY")){
+    delete instanceDict[guildID];
     dbClose(db);
     return;
   }
   
   if(channelID == undefined && (message.content.toLowerCase() == "!stat" || message.content.toLowerCase() == "!stats" || message.content.toLowerCase() == "!add" || message.content.toLowerCase() == "!remove")){
     message.reply("Bot has not been setup yet. Please have an admin setup with !setup");
+    delete instanceDict[guildID];
     dbClose(db);
     return;
   }
 
   if (!message.content.startsWith(prefix) && message.channel.id == channelID && !message.author.bot){
     message.delete();
+    delete instanceDict[guildID];
     dbClose(db);
     return;
   }
@@ -102,9 +114,11 @@ bot.on('message', async message => {
   if (comms.indexOf(message.content.toLowerCase() ) == -1 && !message.author.bot) {
     if(message.channel.id == channelID){
       message.delete();
+      delete instanceDict[guildID];
       dbClose(db);
       return;
     }
+    delete instanceDict[guildID];
     dbClose(db);
     return;
   }
@@ -114,13 +128,8 @@ bot.on('message', async message => {
 	const command = args.shift().toLowerCase();
   const leaderboardsChannel = message.guild.channels.resolve(channelID);
 
-  var guildID = message.guild.id;
-  if(instanceDict[guildID] != undefined){
-    message.delete();
-    dbClose(db);
-    return;
-  }else{
-    instanceDict[guildID] = ".";
+  function deleteMess(){
+    leaderboardsChannel.bulkDelete(99).catch(error => leaderboardsChannel.send("Please delete all messages in this channel that are more than 14 days old as I cannot do it myself due to Discord limitations. :) Until then, I will not be able to delete any messages. Even those less than 14 days old"));
   }
 
   if(command === 'setup' && message.member.hasPermission("ADMINISTRATOR")){
@@ -186,77 +195,94 @@ bot.on('message', async message => {
     dbClose(db);
     return;
   }
-  if (command === 'add' && message.member.hasPermission("ADMINISTRATOR")){
+  if (command === 'add' && message.member.hasPermission("ADMINISTRATOR") && message.channel.id == channelID){
     
-
     delete instanceDict[guildID];
   }
-  if (command === 'remove' && message.member.hasPermission("ADMINISTRATOR")){
-    const queryResult = await new Promise((resolve, reject) => {
-      db.all(`SELECT membershipID,displayName
-              FROM guildPlayers
-              WHERE guildID = ` + message.guild.id, [], (err, rows) => {
-        if (err){
-          reject(err);
-        }
-        resolve(rows);
-      })
-    });
-
-    if(queryResult[0] == undefined){
-      message.reply("There are no members added to this leaderboard. Trying adding them with !add");
-      delete instanceDict[guildID];
-      dbClose(db);
-      return;
-    }
-  
-    var membershipID = new Array();
-    var names = new Array();
-    var memberList = "\n";
-    for(n = 0; n < queryResult.length; n++){
-      membershipID.push(queryResult[n].membershipID);
-      names.push(queryResult[n].displayName);
-      memberList = memberList + (n+1) + ". " + queryResult[n].displayName + "\n";
-    }
-    message.reply(memberList);
-    var successfulReply = false;
-    var redo = true;
-    while(redo == true){
-      message.reply("What is the number corresponding to the person you would like to remove? Would you like to try again? Yes or no.");
+  if (command === 'remove' && message.member.hasPermission("ADMINISTRATOR") && message.channel.id == channelID){
+    deleteMess();
+    
+    
+    /*while(redo == true){
+      contin = false;
+      message.reply(memberList);
+      message.reply("\nWhat is the number corresponding to the person you would like to remove?");
       await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
-        //console.log(collected.first().content);
         if(!collected.first().content.match(/^\d+$/)){
-          message.reply("\n\n\nYou did not enter a number by itself! Would you like to try again? Yes or no.");
+          leaderboardsChannel.bulkDelete(99).catch(error => leaderboardsChannel.send("Please delete all messages in this channel that are more than 14 days old as I cannot do it myself due to Discord limitations. :) Until then, I will not be able to delete any messages. Even those less than 14 days old"));
+          message.reply("\nYou did not enter a number by itself!");
         }else if(collected.first().content > names.length || collected.first().content < 1){
-          message.reply("\n\n\nYou typed a number that isn't one of the numbers listed");
+          leaderboardsChannel.bulkDelete(99).catch(error => leaderboardsChannel.send("Please delete all messages in this channel that are more than 14 days old as I cannot do it myself due to Discord limitations. :) Until then, I will not be able to delete any messages. Even those less than 14 days old"));
+          message.reply("\nYou typed a number that isn't one of the numbers listed!");
         }else{
-          message.reply("\n\n\nAre you sure you want to remove " + names[(Integer.parseInt(collected.first().content) - 1)]);
+          leaderboardsChannel.bulkDelete(99).catch(error => leaderboardsChannel.send("Please delete all messages in this channel that are more than 14 days old as I cannot do it myself due to Discord limitations. :) Until then, I will not be able to delete any messages. Even those less than 14 days old"));
+          currentIndex = (collected.first().content - 1);
+          message.reply("\nAre you sure you want to remove " + names[currentIndex] + "?  Yes or no.");
           successfulReply = true;
         }
       }).catch(() => {
         message.reply('No answer after 30 seconds, operation canceled.');
         delete instanceDict[guildID];
         dbClose(db);
+        leaderboardsChannel.send("!stat");
         redo = false;
         return;
       });
-      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
-        if(successfulReply){
+
+      if(successfulReply){
+        await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
+          leaderboardsChannel.bulkDelete(99).catch(error => leaderboardsChannel.send("Please delete all messages in this channel that are more than 14 days old as I cannot do it myself due to Discord limitations. :) Until then, I will not be able to delete any messages. Even those less than 14 days old"));
           if(collected.first().content.toLowerCase() == 'yes'){
-            
-
-
-            delete instanceDict[guildID];
-            dbClose(db);
-            return;
+            removeMembersIndex.push(currentIndex);
+          }else{
+            message.reply("Adding cancelled.");
           }
+        }).catch(() => {
+          message.reply('No answer after 30 seconds, operation canceled.');
+          delete instanceDict[guildID];
+          dbClose(db);
+          leaderboardsChannel.send("!stat");
+          redo = false;
+          return;
+        });
+      }
+
+      message.reply("\nDo you want to remove another member? Yes or no.");
+      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
+        leaderboardsChannel.bulkDelete(99).catch(error => leaderboardsChannel.send("Please delete all messages in this channel that are more than 14 days old as I cannot do it myself due to Discord limitations. :) Until then, I will not be able to delete any messages. Even those less than 14 days old"));
+        if(collected.first().content.toLowerCase() == 'yes'){
+            redo = true;
+            contin = true;
         }else{
-          if(collected.first().content.toLowerCase() != 'yes'){
-            message.reply("Have a good day!");
-            delete instanceDict[guildID];
-            dbClose(db);
-            return;
-          }
+          redo = false;
+        }
+      }).catch(() => {
+        message.reply('No answer after 30 seconds, operation canceled.');
+        delete instanceDict[guildID];
+        dbClose(db);
+        redo = false;
+        leaderboardsChannel.send("!stat");
+        return;
+      });
+      if(contin){
+        continue;
+      }
+      if(removeMembersIndex.length == 0){
+        redo == false;
+        continue;
+      }
+      var removeList = "\n";
+      for(d = 0; d < removeMembersIndex.length; d++){
+        removeList = removeList + names[removeMembersIndex[d]] + "\n";
+      }
+      message.reply("\nConfirm that you would like to remove these players. Yes or no:" + removeList);
+      var sendQuery = false;
+      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
+        leaderboardsChannel.bulkDelete(99).catch(error => leaderboardsChannel.send("Please delete all messages in this channel that are more than 14 days old as I cannot do it myself due to Discord limitations. :) Until then, I will not be able to delete any messages. Even those less than 14 days old"));
+        if(collected.first().content.toLowerCase() == 'yes'){
+          sendQuery = true;
+        }else{
+          message.reply("\nYou did not say yes. Cancelling!");
         }
       }).catch(() => {
         message.reply('No answer after 30 seconds, operation canceled.');
@@ -266,20 +292,127 @@ bot.on('message', async message => {
         return;
       });
     }
+    */
 
+    var currentIndex;
+    var sendQuery;
+    var contin = true;
+    var validRemove;
+    while(contin){
+      sendQuery = false;
+      validRemove = false;
+      
+      var queryResult = await new Promise((resolve, reject) => {
+        db.all(`SELECT membershipID,displayName
+                FROM guildPlayers
+                WHERE guildID = ` + message.guild.id, [], (err, rows) => {
+          if (err){
+            reject(err);
+          }
+          resolve(rows);
+        })
+      });
+  
+      if(queryResult[0] == undefined){
+        message.reply("There are no members added to this leaderboard. Try adding them with !add");
+        contin = false;
+        continue;
+      }
+      var membershipID = new Array();
+      var names = new Array();
+      var memberList = "\n";
+      for(n = 0; n < queryResult.length; n++){
+        membershipID.push(queryResult[n].membershipID);
+        names.push(queryResult[n].displayName);
+        memberList = memberList + (n+1) + ". " + queryResult[n].displayName + "\n";
+      }
 
+      message.reply(memberList);
+      message.reply("\nWhat is the number corresponding to the person you would like to remove?");
 
+      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
+        if(!collected.first().content.match(/^\d+$/)){
+          deleteMess();
+          message.reply("\nYou did not enter a number by itself!");
+          validRemove = false;
+        }else if(collected.first().content > names.length || collected.first().content < 1){
+          deleteMess();
+          message.reply("\nYou typed a number that isn't one of the numbers listed!");
+          validRemove = false;
+        }else{
+          deleteMess();
+          currentIndex = (collected.first().content - 1);
+          message.reply("\nAre you sure you want to remove " + names[currentIndex] + "?  Yes or no.");
+          validRemove = true;
+        }
+      }).catch(() => {
+        message.reply('No answer after 30 seconds, operation canceled.');
+        contin=false;
+        return;
+      });
 
+      if(validRemove){
+        await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
+          if(collected.first().content.toLowerCase() == 'yes'){
+            sendQuery = true;
+          }else{
+            deleteMess();
+            message.reply("Removal cancelled.");
+            sendQuery = false;
+          }          
+        }).catch(() => {
+          message.reply('No answer after 30 seconds, operation canceled.');
+          contin=false;
+          return;
+        });
 
+        /*if(sendQuery){
+            deleteMess();
+            message.reply("Removed " + names[currentIndex]);
+          }*/
 
+        if(sendQuery){
+          queryString = `DELETE FROM guildPlayers WHERE (guildID = ` + message.guild.id + ` AND membershipID = ` + membershipID[currentIndex] + `)`
+          console.log(queryString);
+          await new Promise((resolve, reject) => {
+            db.all(queryString, [], (err, rows) => {
+              if (err){
+                reject(err);
+              }
+              resolve(rows);
+            })
+          });
+        }
+        
+      }
+
+      if(contin){
+        message.reply("Would you like to remove again?");
+        await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
+          if(collected.first().content.toLowerCase() == 'yes'){
+            contin = true;
+            deleteMess();
+          }else{
+            contin = false;
+          }
+        }).catch(() => {
+          message.reply('No answer after 30 seconds, operation canceled.');
+          contin=false;
+          return;
+        });
+      }
+    }
     delete instanceDict[guildID];
     dbClose(db);
+    leaderboardsChannel.send("!stat");
     return;
   }
-  if (command === 'manual' && message.member.hasPermission("ADMINISTRATOR")){
-    
 
+  if (command === 'manual' && message.member.hasPermission("ADMINISTRATOR")){
     delete instanceDict[guildID];
+    leaderboardsChannel.send("!stat");
+    dbClose(db);
+    return;
   }
 
 //check if the command is the chosen stat, which is either stat or stats
@@ -296,7 +429,14 @@ bot.on('message', async message => {
         resolve(rows);
       })
     });
-  
+
+    deleteMess();
+    if(queryResult[0] == undefined){
+      message.reply("There are no members added to this leaderboard. Have an admin add them with !add");
+      dbClose(db);
+      delete instanceDict[guildID];
+      return;
+    }
     var membershipID = new Array();
     var envLight = new Array();
     var envCharacter = new Array();
@@ -322,9 +462,7 @@ bot.on('message', async message => {
 
     var author = message.author.bot;
     var user = message.author.id;
-  //Clear out the entire channel chosen of all messages
-
-    leaderboardsChannel.bulkDelete(99).catch(error => console.log(error.stack));
+  
     const channel = bot.channels.cache.get(channelID);
   //If the message was from a user, let them know it'll be a second
     if(!author){
@@ -566,14 +704,17 @@ bot.on('message', async message => {
         artifactPower[i] = sortedByLight[i].artifactPower;
     }
   //Clearing chosen Leaderboards Channel of all messages to prep for new post
-    leaderboardsChannel.bulkDelete(99).catch(error => console.log(error.stack));
+    deleteMess();
   //Checking if the bot initiated the command (From 10am daily) or if a user initiated and giving the corresponsing header output
+    var firstID;
     if(author){
     //Sending automatic initiated message for 10am
-      channel.send("Good morning fireteam! Here is your daily leaderboards. To manually update, please use the command !stat.");
+      let sent = await channel.send("Good morning fireteam! Here is your daily leaderboards. To manually update, please use the command !stat.");
+      firstID = sent.id;
     }else{
       //Sending manual initiated message
-      channel.send("Last updated manually by <@" + user + ">. To manually update, please use the command !stat.");
+      let sent = await channel.send("Last updated manually by <@" + user + ">. To manually update, please use the command !stat.");
+      firstID = sent.id;
     }
     
   //Loop to create the character images for each player
@@ -706,19 +847,23 @@ bot.on('message', async message => {
 
     var endCount =  Date.now();
     console.log(`Completed in: ${(endCount - startCount)/1000} seconds`);
-
-    //leaderboardsChannel.messages.fetch(firstMessage).then(message => message.edit(leaderboardsChannel.messages.fetch(firstMessage).content + ` Completed in: ${(endCount - startCount)/1000} seconds`)).catch(console.error);
-    leaderboardsChannel.messages.cache.first().edit(leaderboardsChannel.messages.cache.first().content + ` Completed in: ${(endCount - startCount)/1000} seconds:`);
-    
-    //var send = await fetch("https://api.heroku.com/apps/" + process.env.appName + "/config-vars", { method: 'PATCH', headers: herokuHead, body: JSON.stringify({"light": envLight.toString(), "character": envCharacter.toString()})}).then(response => response.json()).catch(error => console.log(error));
-    //console.log(send);
-
+    var firstContent;
+    leaderboardsChannel.messages.fetch(firstID).then(message => {
+      firstContent = message.content
+      leaderboardsChannel.messages.fetch(firstID).then(message => message.edit(firstContent + ` Completed in: ${(endCount - startCount)/1000} seconds`)).catch(console.error);
+    })
+    .catch(console.error);
+    //leaderboardsChannel.messages.cache.first().edit(leaderboardsChannel.messages.cache.first().content + ` Completed in: ${(endCount - startCount)/1000} seconds:`).catch(console.error);
     delete instanceDict[guildID];
   }else{
     //Deletes any message with a prefix that isn't one of the accepted
     message.delete();
+    dbClose(db);
+    delete instanceDict[guildID];
     return;
   }
+  console.log()
+  delete instanceDict[guildID];
   return;
 });
 

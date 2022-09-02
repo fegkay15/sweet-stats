@@ -2109,3 +2109,6 @@ test2.sql
 test3.sql
 sweetstats - Copy.db
 .gitignore
+sweetstats (backup).db
+sweetstats (1 member).db
+sweetstats (old backup).db
