@@ -201,99 +201,6 @@ bot.on('message', async message => {
   }
   if (command === 'remove' && message.member.hasPermission("ADMINISTRATOR") && message.channel.id == channelID){
     deleteMess();
-    
-    
-    /*while(redo == true){
-      contin = false;
-      message.reply(memberList);
-      message.reply("\nWhat is the number corresponding to the person you would like to remove?");
-      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
-        if(!collected.first().content.match(/^\d+$/)){
-          leaderboardsChannel.bulkDelete(99).catch(error => leaderboardsChannel.send("Please delete all messages in this channel that are more than 14 days old as I cannot do it myself due to Discord limitations. :) Until then, I will not be able to delete any messages. Even those less than 14 days old"));
-          message.reply("\nYou did not enter a number by itself!");
-        }else if(collected.first().content > names.length || collected.first().content < 1){
-          leaderboardsChannel.bulkDelete(99).catch(error => leaderboardsChannel.send("Please delete all messages in this channel that are more than 14 days old as I cannot do it myself due to Discord limitations. :) Until then, I will not be able to delete any messages. Even those less than 14 days old"));
-          message.reply("\nYou typed a number that isn't one of the numbers listed!");
-        }else{
-          leaderboardsChannel.bulkDelete(99).catch(error => leaderboardsChannel.send("Please delete all messages in this channel that are more than 14 days old as I cannot do it myself due to Discord limitations. :) Until then, I will not be able to delete any messages. Even those less than 14 days old"));
-          currentIndex = (collected.first().content - 1);
-          message.reply("\nAre you sure you want to remove " + names[currentIndex] + "?  Yes or no.");
-          successfulReply = true;
-        }
-      }).catch(() => {
-        message.reply('No answer after 30 seconds, operation canceled.');
-        delete instanceDict[guildID];
-        dbClose(db);
-        leaderboardsChannel.send("!stat");
-        redo = false;
-        return;
-      });
-
-      if(successfulReply){
-        await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
-          leaderboardsChannel.bulkDelete(99).catch(error => leaderboardsChannel.send("Please delete all messages in this channel that are more than 14 days old as I cannot do it myself due to Discord limitations. :) Until then, I will not be able to delete any messages. Even those less than 14 days old"));
-          if(collected.first().content.toLowerCase() == 'yes'){
-            removeMembersIndex.push(currentIndex);
-          }else{
-            message.reply("Adding cancelled.");
-          }
-        }).catch(() => {
-          message.reply('No answer after 30 seconds, operation canceled.');
-          delete instanceDict[guildID];
-          dbClose(db);
-          leaderboardsChannel.send("!stat");
-          redo = false;
-          return;
-        });
-      }
-
-      message.reply("\nDo you want to remove another member? Yes or no.");
-      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
-        leaderboardsChannel.bulkDelete(99).catch(error => leaderboardsChannel.send("Please delete all messages in this channel that are more than 14 days old as I cannot do it myself due to Discord limitations. :) Until then, I will not be able to delete any messages. Even those less than 14 days old"));
-        if(collected.first().content.toLowerCase() == 'yes'){
-            redo = true;
-            contin = true;
-        }else{
-          redo = false;
-        }
-      }).catch(() => {
-        message.reply('No answer after 30 seconds, operation canceled.');
-        delete instanceDict[guildID];
-        dbClose(db);
-        redo = false;
-        leaderboardsChannel.send("!stat");
-        return;
-      });
-      if(contin){
-        continue;
-      }
-      if(removeMembersIndex.length == 0){
-        redo == false;
-        continue;
-      }
-      var removeList = "\n";
-      for(d = 0; d < removeMembersIndex.length; d++){
-        removeList = removeList + names[removeMembersIndex[d]] + "\n";
-      }
-      message.reply("\nConfirm that you would like to remove these players. Yes or no:" + removeList);
-      var sendQuery = false;
-      await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
-        leaderboardsChannel.bulkDelete(99).catch(error => leaderboardsChannel.send("Please delete all messages in this channel that are more than 14 days old as I cannot do it myself due to Discord limitations. :) Until then, I will not be able to delete any messages. Even those less than 14 days old"));
-        if(collected.first().content.toLowerCase() == 'yes'){
-          sendQuery = true;
-        }else{
-          message.reply("\nYou did not say yes. Cancelling!");
-        }
-      }).catch(() => {
-        message.reply('No answer after 30 seconds, operation canceled.');
-        delete instanceDict[guildID];
-        dbClose(db);
-        redo = false;
-        return;
-      });
-    }
-    */
-
     var currentIndex;
     var sendQuery;
     var contin = true;
@@ -365,11 +272,6 @@ bot.on('message', async message => {
           contin=false;
           return;
         });
-
-        /*if(sendQuery){
-            deleteMess();
-            message.reply("Removed " + names[currentIndex]);
-          }*/
 
         if(sendQuery){
           queryString = `DELETE FROM guildPlayers WHERE (guildID = ` + message.guild.id + ` AND membershipID = ` + membershipID[currentIndex] + `)`
@@ -565,7 +467,6 @@ bot.on('message', async message => {
     }
     for(i = 0; i < names.length; i++){
     //HTTP GET Request to url to get necessary info needed for the stat images
-      //console.log(arrayReply[i]);
       reply = arrayReply[i];
       replyAccountStats = arrayReplyAccountStats[i];
     //Declarations
