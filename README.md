@@ -25,7 +25,7 @@ Commands:
 10. Run 'git commit -am "Deploying to Heroku"'
 11. Run 'git push heroku master'
 12. Use this link to add your bot to your server:  
-https://<!--This is a comment-->discord.com/api/oauth2/authorize?client_id=insertClientIdFromDiscordHere&permissions=257024&scope=bot124928
+https://<!--This is a comment-->discord.com/api/oauth2/authorize?client_id=insertClientIdFromDiscordHere&permissions=240656&scope=bot
 
 And there you go, it should be running. If it isn't, you may need to go into the resources tab of your app on Heroku and make sure that Worker is enabled and that no other Dynos are enabled. 
 
