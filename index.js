@@ -35,25 +35,8 @@ bot.on("ready", async () => {
 });
 //When a message is detected, do this
 bot.on('message', async message => {
-  var guildID = message.guild.id;
-  if(instanceDict[guildID] != undefined){
-    if(!message.author.bot){
-      message.delete();
-      return;
-    }
-  }else if(!message.author.bot || (message.author.bot && message.content == "!stat")){
-    instanceDict[guildID] = ".";
-  }
   var startCount =  Date.now();
-
-  if(!message.guild.me.hasPermission("SEND_MESSAGES") || !message.guild.me.hasPermission("MANAGE_MESSAGES") || !message.guild.me.hasPermission("EMBED_LINKS") || !message.guild.me.hasPermission("ATTACH_FILES") || !message.guild.me.hasPermission("READ_MESSAGE_HISTORY")){
-    return;
-  }
-  
-  if(message.author.bot && message.content.toLowerCase() != "!stat"){
-    return;
-  }
-
+  var guildID = message.guild.id;
   let db = new sqlite3.Database('./sweetstats.db', sqlite3.OPEN_READWRITE, (err) => {
     if (err) {
       console.error(err.message);
@@ -71,7 +54,7 @@ bot.on('message', async message => {
   }
 
   const channelID = await new Promise((resolve, reject) => {
-    db.all(`SELECT channelID FROM guildPrefs WHERE guildID = ` + message.guild.id, [], (err, rows) => {
+    db.all(`SELECT channelID FROM guildPrefs WHERE guildID = ` + guildID, [], (err, rows) => {
       if (err){
         reject(err);
       }
@@ -83,8 +66,26 @@ bot.on('message', async message => {
     })
   });
 
+  if(instanceDict[guildID] != undefined){
+    if(!message.author.bot && message.guild.id == channelID){
+      message.delete();
+      return;
+    }
+  }else if(!message.author.bot || (message.author.bot && message.content == "!stat")){
+    instanceDict[guildID] = ".";
+  }
+
+  if(!message.guild.me.hasPermission("SEND_MESSAGES") || !message.guild.me.hasPermission("MANAGE_MESSAGES") || !message.guild.me.hasPermission("EMBED_LINKS") || !message.guild.me.hasPermission("ATTACH_FILES") || !message.guild.me.hasPermission("READ_MESSAGE_HISTORY")){
+    return;
+  }
+  
+  if(message.author.bot && message.content.toLowerCase() != "!stat"){
+    dbClose(db);
+    return;
+  }
+
   var channelPerm;
-  if(channelID != undefined){
+  if(channelID != undefined && message.guild.channels.resolve(channelID) != null){
     channelPerm = message.guild.channels.resolve(channelID);
   }else{
     channelPerm = message.channel;
@@ -96,7 +97,7 @@ bot.on('message', async message => {
     return;
   }
   
-  if(channelID == undefined && (message.content.toLowerCase() == "!stat" || message.content.toLowerCase() == "!stats" || message.content.toLowerCase() == "!add" || message.content.toLowerCase() == "!remove")){
+  if((channelID == undefined || message.guild.channels.resolve(channelID) == null) && (message.content.toLowerCase() == "!stat" || message.content.toLowerCase() == "!stats" || message.content.toLowerCase() == "!add" || message.content.toLowerCase() == "!remove")){
     message.reply("Bot has not been setup yet. Please have an admin setup with !setup");
     delete instanceDict[guildID];
     dbClose(db);
@@ -134,63 +135,99 @@ bot.on('message', async message => {
 
   if(command === 'setup' && message.member.hasPermission("ADMINISTRATOR")){
     var updateChannel = false;
-    if(channelID != undefined){
-      message.reply("It looks like you already have a channel set. Are you trying to change it?");
+    var overwriteChannel = false; 
+    var skip = false;
+    var channelReply = "";
+    if(channelID != undefined && message.guild.channels.resolve(channelID) != null){
+      message.reply("It looks like you already have a channel set. Are you trying to create a new one?");
       await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
         if(collected.first().content.toLowerCase() != 'yes'){
           message.reply("Have a good day!");
+          skip = true;
           delete instanceDict[guildID];
           dbClose(db);
           return;
         }
+        overwriteChannel = true;
         updateChannel = true;
       }).catch(() => {
         message.reply('No answer after 30 seconds, operation canceled.');
+        skip = true;
         delete instanceDict[guildID];
-        dbClose(db);
         return;
-      });
-    }
-
-    message.reply("Which channel would you like to be the leaderboards channel? (Use # to tag the channel) This should be a new channel dedicated to the bot as the bot will delete all messages everytime it runs!");
-    await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
-      console.log(collected.first().content);
-      if((collected.first().content.match(/<#/g) || []).length == 1){
-        channelReply = collected.first().content;
-      }else{
-        message.reply("You either added more than one channel tag in your reply, or didn't provide one.");
-        delete instanceDict[guildID];
-        dbClose(db);
-        return;
-      }
-    }).catch(() => {
-      message.reply('No answer after 30 seconds, operation canceled.');
-      delete instanceDict[guildID];
-      dbClose(db);
-      return;
-    });
-
-    if(updateChannel){
-      await new Promise((resolve, reject) => {
-        db.all("UPDATE guildPrefs SET channelID = " + channelReply.substring(channelReply.indexOf('#') + 1,channelReply.indexOf('>')) + " WHERE guildID = " + message.guild.id, [], function(err) {
-          if (err) {
-            reject(err);
-          }
-          resolve();
-        });
       });
     }else{
-      await new Promise((resolve, reject) => {
-        db.all("INSERT INTO guildPrefs (guildID,channelID) VALUES(" + message.guild.id + "," + channelReply.substring(channelReply.indexOf('#') + 1,channelReply.indexOf('>')) + ")", [], function(err) {
-          if (err) {
-            reject(err);
-          }
-          resolve();
-        });
-      });
+      if(channelID != undefined && message.guild.channels.resolve(channelID) == null){
+        overwriteChannel = true;
+      }else{
+        overwriteChannel = false;
+      }
+      updateChannel = true;
     }
-
-    message.reply("Bot setup is complete. Now add Destiny players with !add");
+    if(!skip){
+      while(updateChannel){
+        message.reply("A new text channel will be created. What would you like to name it?");
+        await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
+          channelReply = collected.first().content.toLowerCase().replace(/[^a-z0-9]{1,}/g,'-')
+        }).catch(() => {
+          message.reply('No answer after 30 seconds, operation canceled.');
+          updateChannel = false;
+          skip = true;
+          delete instanceDict[guildID];
+          return;
+        });
+        if(!updateChannel){
+          continue;
+        }
+        message.reply("Is " + channelReply + " correct? (Modified to fit Discord's name requirements).");
+        var createChannel = false;
+        await message.channel.awaitMessages(m => m.author.id == message.author.id,{max: 1, time: 30000}).then(collected => {
+          if(collected.first().content.toLowerCase() == 'yes'){
+            createChannel = true;
+            updateChannel = false;
+          }else{
+            createChannel = false;
+            updateChannel = true;
+          }          
+        }).catch(() => {
+          message.reply('No answer after 30 seconds, operation canceled.');
+          updateChannel = false;
+          skip = true;
+          delete instanceDict[guildID];
+          return;
+        });
+        var createdChannel;
+        if(createChannel){
+          createdChannel = await message.guild.channels.create(channelReply, {
+            type: 'text',
+          })
+          message.reply("Created new text channel <#" + createdChannel.id + ">. Feel free to move it wherever amongst your channels. Continue to add players with !add in <#" + createdChannel.id + ">.");
+        }
+      }
+    }
+    
+    if(!skip){
+      if(overwriteChannel ){
+        await new Promise((resolve, reject) => {
+          db.all("UPDATE guildPrefs SET channelID = " + createdChannel.id + " WHERE guildID = " + message.guild.id, [], function(err) {
+            if (err) {
+              reject(err);
+            }
+            resolve();
+          });
+        });
+      }else{
+        await new Promise((resolve, reject) => {
+          db.all("INSERT INTO guildPrefs (guildID,channelID) VALUES(" + message.guild.id + "," + createdChannel.id + ")", [], function(err) {
+            if (err) {
+              reject(err);
+            }
+            resolve();
+          });
+        });
+      }
+    }
+    
     delete instanceDict[guildID];
     dbClose(db);
     return;
@@ -309,7 +346,6 @@ bot.on('message', async message => {
     leaderboardsChannel.send("!stat");
     return;
   }
-
   if (command === 'manual' && message.member.hasPermission("ADMINISTRATOR")){
     delete instanceDict[guildID];
     leaderboardsChannel.send("!stat");
@@ -318,7 +354,7 @@ bot.on('message', async message => {
   }
 
 //check if the command is the chosen stat, which is either stat or stats
-  if (command === 'stat' || command === 'stats') {
+  if (command === 'stat' || command === 'stats'){
     
     const queryResult = await new Promise((resolve, reject) => {
       db.all(`SELECT destinyPlayers.*, guildPlayers.displayName
@@ -767,5 +803,14 @@ bot.on('message', async message => {
   delete instanceDict[guildID];
   return;
 });
+
+process
+  .on('unhandledRejection', (reason, p) => {
+    console.error(reason, 'Unhandled Rejection at Promise', p);
+  })
+  .on('uncaughtException', err => {
+    console.error(err, 'Uncaught Exception thrown');
+    process.exit(1);
+  });
 
 bot.login(token);
